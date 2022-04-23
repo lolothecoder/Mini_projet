@@ -1,0 +1,32 @@
+Git commands
+
+git config --global user.name "xxx"
+git config --global user.name
+
+git config --global user.email "xxx"
+git config --global user.email
+
+git config --global --list
+
+git init //Initialize git for the project
+git status // See what branch ure on and what needs to be added
+git add . // add all files to be commited
+git add file.txt //add specific file to be commited
+git commit -m "message"
+git push -u origin master
+
+git remote add origin git@gitlab.com:leshrimpkiller/the-test.git //adds a new origin
+git remote -v //View origin
+
+git checkout branchname //switch branches
+git checkout -b branchname // create new branch
+git push origin branchname // push that branch
+git branch -d localBranchName// delete branch
+
+git merge branchname –no-ff // merge
+git clone https://github.com/YOUR-USERNAME/YOUR-REPOSITORY // to clone
+
+hello
+
+Liam is a KingSimp
+

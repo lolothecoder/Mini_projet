@@ -1,0 +1,10 @@
+On main -> git pull
+git branch feature (or git checkout if branch already created)
+make changes
+git add .
+git commit - m "changes done"
+
+if the change is significant:
+	git checkout main
+	git merge feature
+git push 
