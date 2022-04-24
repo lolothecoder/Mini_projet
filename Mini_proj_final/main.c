@@ -38,6 +38,7 @@ int main(void)
     halInit();
     chSysInit();
     mpu_init();
+    front_led_start ();
 
     VL53L0X_start();
     serial_start();
@@ -46,14 +47,12 @@ int main(void)
     loop_start();
     TOF_start();
 
-    static complex_float temp_tab[FFT_SIZE];
-
-    static float send_tab[FFT_SIZE];
-
-    //mic_start(&processAudioData);
+    mic_start(&processAudioData);
 
     while (1)
-    {}
+    {
+
+    }
 }
 
 #define STACK_CHK_GUARD 0xe2dee396

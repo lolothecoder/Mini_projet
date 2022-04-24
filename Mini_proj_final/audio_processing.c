@@ -4,7 +4,7 @@
 #include <usbcfg.h>
 #include <chprintf.h>
 
-#include <motors.h>
+#include <motors_lib.h>
 #include <audio/microphone.h>
 #include <audio_processing.h>
 #include <communications.h>
@@ -19,20 +19,24 @@ static float micLeft_cmplx_input[2 * FFT_SIZE];
 static float micRight_cmplx_input[2 * FFT_SIZE];
 static float micFront_cmplx_input[2 * FFT_SIZE];
 static float micBack_cmplx_input[2 * FFT_SIZE];
+
 //Arrays containing the computed magnitude of the complex numbers
 static float micLeft_output[FFT_SIZE];
 static float micRight_output[FFT_SIZE];
 static float micFront_output[FFT_SIZE];
 static float micBack_output[FFT_SIZE];
 
+
 #define MIN_VALUE_THRESHOLD	10000 
 
+#define MIC_COUNT		4	//number of microphones
 #define MIN_FREQ		10	//we don't analyze before this index to not use resources for nothing
 #define FREQ_FORWARD	16	//250Hz
 #define FREQ_LEFT		19	//296Hz
 #define FREQ_RIGHT		23	//359HZ
 #define FREQ_BACKWARD	26	//406Hz
-#define MAX_FREQ		30	//we don't analyze after this index to not use resources for nothing
+#define FREQ_SPIN		90  //1400Hz
+#define MAX_FREQ		100	//we don't analyze after this index to not use resources for nothing
 
 #define FREQ_FORWARD_L		(FREQ_FORWARD-1)
 #define FREQ_FORWARD_H		(FREQ_FORWARD+1)
@@ -42,12 +46,60 @@ static float micBack_output[FFT_SIZE];
 #define FREQ_RIGHT_H		(FREQ_RIGHT+1)
 #define FREQ_BACKWARD_L		(FREQ_BACKWARD-1)
 #define FREQ_BACKWARD_H		(FREQ_BACKWARD+1)
+#define FREQ_SPIN_L			(FREQ_SPIN -2)
+#define FREQ_SPIN_H			(FREQ_SPIN +2)
+
+#define EPUCK_DIAMETER		7.3 //value in cm
+#define SOUND_SPEED			343 //value in m/s
+
+//Array containing latest recorded volume for each microphone
+
+
+
+/*
+ * Function that determines from which direction
+ * the sound is coming from
+ */
+
+float determin_argument (float* data_mag, float* data_dft)
+{
+	float max_norm = MIN_VALUE_THRESHOLD;
+	float ratio =0;
+	int16_t max_norm_index = -1;
+
+	//search for the highest peak
+	for (uint16_t i = MIN_FREQ ; i <= MAX_FREQ ; i++)
+	{
+		if (data_mag[i] > max_norm)
+		{
+			max_norm = data_mag[i];
+			max_norm_index = i;
+		}
+	}
+
+	ratio = (float)(data_dft[2*max_norm_index+1]/data_dft[2*max_norm_index]);
+
+
+	//Approximation of arctan
+	return (ratio - (float)((ratio*ratio*ratio)/3));
+}
+
+
+void determin_sound_origin (float* data_mag1, float* data_dft1,
+							float* data_mag2, float* data_dft2)
+{
+	float time_shift = determin_argument (data_mag1, data_dft1) -
+					   determin_argument (data_mag2, data_dft2);
+
+	chprintf((BaseSequentialStream *)&SD3, "time shift = %d%\r\n\n", time_shift);
+}
 
 /*
 *	Simple function used to detect the highest value in a buffer
 *	and to execute a motor command depending on it
 */
-void sound_remote(float* data){
+void sound_remote(float* data)
+{
 	float max_norm = MIN_VALUE_THRESHOLD;
 	int16_t max_norm_index = -1; 
 
@@ -59,6 +111,9 @@ void sound_remote(float* data){
 		}
 	}
 
+	chprintf((BaseSequentialStream *)&SD3, "%u%\r\n\n", max_norm_index);
+
+	/*
 	//go forward
 	if(max_norm_index >= FREQ_FORWARD_L && max_norm_index <= FREQ_FORWARD_H){
 		left_motor_set_speed(600);
@@ -79,11 +134,20 @@ void sound_remote(float* data){
 		left_motor_set_speed(-600);
 		right_motor_set_speed(-600);
 	}
+	//spin for 5 turns
+	else if (max_norm_index >= FREQ_SPIN_L && max_norm_index <= FREQ_SPIN_H) {
+		quarter_turns (20);
+	}
 	else{
 		left_motor_set_speed(0);
 		right_motor_set_speed(0);
 	}
-	
+	*/
+
+	if (max_norm_index >= FREQ_SPIN_L && max_norm_index <= FREQ_SPIN_H)
+	{
+		quarter_turns (20);
+	}
 }
 
 /*
@@ -166,6 +230,9 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 		mustSend++;
 
 		sound_remote(micLeft_output);
+		//determin_sound_origin (micFront_output, micFront_cmplx_input,
+		//					     micBack_output, micBack_cmplx_input);
+
 	}
 }
 
@@ -202,3 +269,26 @@ float* get_audio_buffer_ptr(BUFFER_NAME_t name){
 		return NULL;
 	}
 }
+
+static THD_WORKING_AREA(waThdFrontLed, 128);
+static THD_FUNCTION(ThdFrontLed, arg) {
+
+    chRegSetThreadName(__FUNCTION__);
+    (void)arg;
+
+    systime_t time;
+
+    while(1){
+        time = chVTGetSystemTime();
+        palTogglePad(GPIOD, GPIOD_LED_FRONT);
+        chThdSleepUntilWindowed(time, time + MS2ST(100));
+    }
+}
+
+void front_led_start (void)
+{
+	 chThdCreateStatic(waThdFrontLed, sizeof(waThdFrontLed), NORMALPRIO, ThdFrontLed, NULL);
+}
+
+
+
