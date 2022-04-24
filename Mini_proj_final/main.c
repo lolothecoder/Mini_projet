@@ -16,6 +16,8 @@
 #include <communications.h>
 #include <arm_math.h>
 
+#include <motors_lib.h>
+
 static void serial_start(void)
 {
 	static SerialConfig ser_cfg = {
@@ -43,11 +45,11 @@ int main(void)
 
     static float send_tab[FFT_SIZE];
 
-    mic_start(&processAudioData);
+    //mic_start(&processAudioData);
 
     while (1)
     {
-        wait_send_to_computer();
+    	straight_then_turn(20);
     }
 }
 
