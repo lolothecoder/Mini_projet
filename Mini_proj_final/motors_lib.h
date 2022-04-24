@@ -14,5 +14,7 @@ void quarter_turns(uint8_t num_of_quarter_turns);
 //Rolls straight for length distance then turn 90 degrees
 void straight_then_turn(uint8_t distance);
 
+//Initializes loop thread
+void loop_start(void);
 
 #endif /* MOTORS_LIB_H */

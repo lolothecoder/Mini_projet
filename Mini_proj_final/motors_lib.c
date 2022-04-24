@@ -46,4 +46,20 @@ void straight_then_turn(uint8_t distance)
 	quarter_turns(1);
 }
 
+static THD_WORKING_AREA(waLoop, 256);
+static THD_FUNCTION(Loop, arg) {
+	systime_t time;
+    chRegSetThreadName(__FUNCTION__);
+    (void)arg;
+
+    while(1){
+    	time = chVTGetSystemTime();
+    	straight_then_turn(20);
+        chThdSleepUntilWindowed(time, time + MS2ST(5000));
+    }
+}
+
+void loop_start(void){
+	chThdCreateStatic(waLoop, sizeof(waLoop), NORMALPRIO, Loop, NULL);
+}
 
