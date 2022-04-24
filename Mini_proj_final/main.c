@@ -20,6 +20,8 @@
 #include <sensors/VL53L0X/VL53L0X.h>
 #include <TOF.h>
 
+//static int status = 0;
+
 static void serial_start(void)
 {
 	static SerialConfig ser_cfg = {
@@ -32,6 +34,9 @@ static void serial_start(void)
 	sdStart(&SD3, &ser_cfg); // UART3.
 }
 
+//int get_status(){
+//	return status;
+//}
 int main(void)
 {
 

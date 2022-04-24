@@ -10,8 +10,6 @@ Répartition des tâches:
 		MAIN TASK: GET THE DOG TO GO TO THE WHISTLE 
 		
 		Sub tasks:
-			- Understand how to get the volume from
-			a mic
 			- Figure out how to calculate the position
 			of a sound
 			- Make the robot do a basic task (s.a. 

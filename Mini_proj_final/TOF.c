@@ -2,24 +2,32 @@
 #include "hal.h"
 #include <chprintf.h>
 #include <sensors/VL53L0X/VL53L0X.h>
+#include <main.h>
+#include <TOF.h>
 
 #define OBSTACLE_DISTANCE 	70
+#define ADVANCE_DIST		2
+#define DIST_TO_SUB			10
 
 static uint8_t obstacle = 0;
 static uint8_t counter = 0;
 static uint8_t save_dist = 1;
 static uint8_t dist_parc = 0;
+static uint8_t dist_to_add = 0;
 
 static THD_WORKING_AREA(waTOF, 256);
 static THD_FUNCTION(TOF, arg) {
 	systime_t time;
     chRegSetThreadName(__FUNCTION__);
     (void)arg;
-
     while(1){
-    	time = chVTGetSystemTime();
+//    	if (get_status() == 0){
+//    		while(1){
+//    			chThdSleepMilliseconds(10);
+//    		}
+//    	}
     	if(obstacle == 0){
-    		if(VL53L0X_get_dist_mm() < OBSTACLE_DISTANCE){
+    		if(VL53L0X_get_dist_mm() < OBSTACLE_DISTANCE - DIST_TO_SUB){
     			obstacle = 1;
     		} else {
     			obstacle = 3;
@@ -28,26 +36,24 @@ static THD_FUNCTION(TOF, arg) {
 
     	if(obstacle == 1){
     		quarter_turns(1,1);
-    		straight_line(2);
+    		straight_line(ADVANCE_DIST);
+    		dist_parc += ADVANCE_DIST;
     		advance_till_safe();
-    		save_dist = 0;
+    		save_dist = 2;
     		obstacle = 1;
-    		straight_line(4);
+    		straight_line(ADVANCE_DIST+2);
+    		dist_to_add += ADVANCE_DIST+2;
     		advance_till_safe();
     		straight_line(dist_parc);
     		quarter_turns(1,1);
     		obstacle = 3;
-
+    		save_dist = 1;
+    		dist_parc = 0;
     	}
-    	chThdSleepMilliseconds(500);
+    	chThdSleepMilliseconds(100);
     }
-
-
-    		//sixteen_turns(1,-1);
-    		//obstacle = 0;
 }
-    	//chprintf((BaseSequentialStream *)&SD3, "distance = %d%\r\n\n", VL53L0X_get_dist_mm());
-    	//chThdSleepUntilWindowed(time, time + 300);
+
 
 void TOF_start(void){
 	chThdCreateStatic(waTOF, sizeof(waTOF), NORMALPRIO+1, TOF, NULL);
@@ -57,8 +63,16 @@ uint8_t get_obstacle(void){
 	return obstacle;
 }
 
-uint8_t set_obstacle(uint8_t obst){
+void set_obstacle(uint8_t obst){
 	obstacle = obst;
+}
+
+uint8_t get_dist_to_add(void){
+	return dist_to_add;
+}
+
+void set_dist_to_add(uint8_t dist){
+	dist_to_add = dist;
 }
 
 void advance_till_safe(void)
@@ -69,9 +83,12 @@ void advance_till_safe(void)
 	    if(VL53L0X_get_dist_mm() < OBSTACLE_DISTANCE){
 	    	eight_times_two_turns(counter,1);
 	    	counter = 0;
-	    	straight_line(2);
+	    	straight_line(ADVANCE_DIST);
 	    	if(save_dist == 1){
-	    		dist_parc += 2;
+	    		dist_parc += ADVANCE_DIST;
+	    	}
+	    	if(save_dist == 2){
+	    		dist_to_add += ADVANCE_DIST;
 	    	}
 	    }
 	    if (counter > 7){

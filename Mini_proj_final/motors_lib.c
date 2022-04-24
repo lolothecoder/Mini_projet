@@ -28,11 +28,17 @@ void straight_line(uint8_t distance)
 	left_motor_set_speed(MOTOR_SPEED);
 	right_motor_set_speed(MOTOR_SPEED);
 	while(right_motor_get_pos() < distance* NSTEP_ONE_TURN / WHEEL_PERIMETER){
+		if(get_dist_to_add() != 0 && get_obstacle() == 3){
+			right_motor_set_pos(right_motor_get_pos() + get_dist_to_add()* NSTEP_ONE_TURN / WHEEL_PERIMETER);
+			set_dist_to_add(0);
+		}
 		if (get_obstacle() == 3){
 			left_motor_set_speed(MOTOR_SPEED);
 			right_motor_set_speed(MOTOR_SPEED);
 			set_obstacle(0);
 		}
+
+
 	}
 	left_motor_set_speed(0);
 	right_motor_set_speed(0);
@@ -74,7 +80,7 @@ void straight_then_turn(uint8_t distance)
 }
 
 
-
+/*
 static THD_WORKING_AREA(waLoop, 256);
 static THD_FUNCTION(Loop, arg) {
 	//systime_t time;
@@ -92,4 +98,4 @@ static THD_FUNCTION(Loop, arg) {
 void loop_start(void){
 	chThdCreateStatic(waLoop, sizeof(waLoop), NORMALPRIO, Loop, NULL);
 }
-
+*/
