@@ -12,41 +12,38 @@
 #define WHEEL_DISTANCE      5.35f    //cm
 #define PERIMETER_EPUCK     (PI * WHEEL_DISTANCE)
 
-static int direction = 0;
+//static int direction = 0;
 
 void init_pos_motor(void)
 {
 	right_motor_set_pos(0);
+	left_motor_set_pos(0);
 }
 
 void straight_line(uint8_t distance)
 {
-	while(right_motor_get_pos() < distance* NSTEP_ONE_TURN / WHEEL_PERIMETER){
-		left_motor_set_speed(MOTOR_SPEED);
-		right_motor_set_speed(MOTOR_SPEED);
-	}
+	init_pos_motor();
+	left_motor_set_speed(MOTOR_SPEED);
+	right_motor_set_speed(MOTOR_SPEED);
+	while(right_motor_get_pos() < distance* NSTEP_ONE_TURN / WHEEL_PERIMETER){}
+	left_motor_set_speed(0);
+	right_motor_set_speed(0);
 }
 
 void quarter_turns(uint8_t num_of_quarter_turns)
 {
-	while(right_motor_get_pos() < num_of_quarter_turns*PERIMETER_EPUCK/4* NSTEP_ONE_TURN / WHEEL_PERIMETER){
-		left_motor_set_speed(-MOTOR_SPEED);
-		right_motor_set_speed(MOTOR_SPEED);
-	}
+	init_pos_motor();
+	left_motor_set_speed(-MOTOR_SPEED);
+	right_motor_set_speed(MOTOR_SPEED);
+	while(right_motor_get_pos() < num_of_quarter_turns*PERIMETER_EPUCK/4* NSTEP_ONE_TURN / WHEEL_PERIMETER){}
+	left_motor_set_speed(0);
+	right_motor_set_speed(0);
 }
 
-void square(uint8_t distance)
+void straight_then_turn(uint8_t distance)
 {
-	if(direction == 1){
-		straight_line(distance);
-	    right_motor_set_pos(0);
-	    direction = -1;
-	    }
-	else{
-		quarter_turns(1);
-	    right_motor_set_pos(0);
-	    direction = 1;
-	}
+	straight_line(distance);
+	quarter_turns(1);
 }
 
 

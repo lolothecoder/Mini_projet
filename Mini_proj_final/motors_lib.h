@@ -11,8 +11,8 @@ void straight_line(uint8_t distance);
 //Turns num_of_quarter_turns * 90 degrees
 void quarter_turns(uint8_t num_of_quarter_turns);
 
-//Rolls in a square of length distance
-void square(uint8_t distance);
+//Rolls straight for length distance then turn 90 degrees
+void straight_then_turn(uint8_t distance);
 
 
 #endif /* MOTORS_LIB_H */
