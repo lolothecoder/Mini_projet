@@ -3,7 +3,7 @@
 #include <chprintf.h>
 #include <sensors/VL53L0X/VL53L0X.h>
 
-#define OBSTACLE_DISTANCE 	60
+#define OBSTACLE_DISTANCE 	80
 
 static uint8_t obstacle = 0;
 
@@ -14,14 +14,21 @@ static THD_FUNCTION(TOF, arg) {
     (void)arg;
 
     while(1){
-    	if(VL53L0X_get_dist_mm() < OBSTACLE_DISTANCE){
-    		left_motor_set_speed(0);
-    		right_motor_set_speed(0);
-    		obstacle = 1;
-    	} else {
-    		obstacle = 2;
+    	if(obstacle != 1){
+    		if(VL53L0X_get_dist_mm() < OBSTACLE_DISTANCE){
+    			obstacle = 1;
+    		} else {
+    			obstacle = 2;
+    		}
     	}
-    	chprintf((BaseSequentialStream *)&SD3, "distance = %d%\r\n\n", VL53L0X_get_dist_mm());
+
+    	if(obstacle == 1){
+    		quarter_turns(1);
+    		straight_line(2);
+    		obstacle = 0;
+    	}
+    	//chprintf((BaseSequentialStream *)&SD3, "distance = %d%\r\n\n", VL53L0X_get_dist_mm());
+    	chThdSleepMilliseconds(20);
     }
 }
 
