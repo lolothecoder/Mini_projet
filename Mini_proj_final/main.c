@@ -60,4 +60,3 @@ void __stack_chk_fail(void)
     chSysHalt("Stack smashing detected");
 }
 
-// WUBULUBAAAA
