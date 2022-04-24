@@ -1,6 +1,7 @@
 #include "ch.h"
 #include "hal.h"
 #include "motors.h"
+#include <TOF.h>
 
 #define MOTOR_SPEED   		600 // []
 #define NSTEP_ONE_TURN      1000 // number of step for 1 turn of the motor
@@ -25,7 +26,13 @@ void straight_line(uint8_t distance)
 	init_pos_motor();
 	left_motor_set_speed(MOTOR_SPEED);
 	right_motor_set_speed(MOTOR_SPEED);
-	while(right_motor_get_pos() < distance* NSTEP_ONE_TURN / WHEEL_PERIMETER){}
+	while(right_motor_get_pos() < distance* NSTEP_ONE_TURN / WHEEL_PERIMETER){
+		if (get_obstacle() == 2){
+			left_motor_set_speed(MOTOR_SPEED);
+			right_motor_set_speed(MOTOR_SPEED);
+			set_obstacle(0);
+		}
+	}
 	left_motor_set_speed(0);
 	right_motor_set_speed(0);
 }
@@ -48,14 +55,14 @@ void straight_then_turn(uint8_t distance)
 
 static THD_WORKING_AREA(waLoop, 256);
 static THD_FUNCTION(Loop, arg) {
-	systime_t time;
+	//systime_t time;
     chRegSetThreadName(__FUNCTION__);
     (void)arg;
 
     while(1){
-    	time = chVTGetSystemTime();
+    	//time = chVTGetSystemTime();
     	straight_then_turn(20);
-        chThdSleepUntilWindowed(time, time + MS2ST(5000));
+        //chThdSleepUntilWindowed(time, time + MS2ST(5000));
     }
 }
 

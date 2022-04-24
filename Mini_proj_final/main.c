@@ -17,6 +17,8 @@
 #include <arm_math.h>
 
 #include <motors_lib.h>
+#include <sensors/VL53L0X/VL53L0X.h>
+#include <TOF.h>
 
 static void serial_start(void)
 {
@@ -37,10 +39,12 @@ int main(void)
     chSysInit();
     mpu_init();
 
+    VL53L0X_start();
     serial_start();
     usb_start();
     motors_init();
     loop_start();
+    TOF_start();
 
     static complex_float temp_tab[FFT_SIZE];
 
@@ -59,5 +63,3 @@ void __stack_chk_fail(void)
 {
     chSysHalt("Stack smashing detected");
 }
-
-// WUBULUBAAAA

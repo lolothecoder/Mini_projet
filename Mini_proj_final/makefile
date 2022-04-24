@@ -14,6 +14,7 @@ CSRC += ./main.c \
 		./communications.c \
 		./fft.c \
 		./motors_lib.c \
+		./TOF.c \
 
 #Header folders to include
 INCDIR += 
