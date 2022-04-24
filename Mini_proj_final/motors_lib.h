@@ -11,6 +11,9 @@ void straight_line(uint8_t distance);
 //Turns num_of_quarter_turns * 90 degrees
 void quarter_turns(uint8_t num_of_quarter_turns, uint8_t dir);
 
+//Turns num_of_quarter_turns * 22.5 degrees
+void eight_times_two_turns(uint8_t num_of_sixteen_turns, uint8_t dir);
+
 //Rolls straight for length distance then turn 90 degrees
 void straight_then_turn(uint8_t distance);
 

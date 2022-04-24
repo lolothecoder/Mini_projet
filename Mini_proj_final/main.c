@@ -43,17 +43,15 @@ int main(void)
     serial_start();
     usb_start();
     motors_init();
-    loop_start();
+    //loop_start();
     TOF_start();
-
-    static complex_float temp_tab[FFT_SIZE];
-
-    static float send_tab[FFT_SIZE];
 
     //mic_start(&processAudioData);
 
     while (1)
-    {}
+    {
+    	straight_then_turn(40);
+    }
 }
 
 #define STACK_CHK_GUARD 0xe2dee396
