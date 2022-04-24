@@ -50,7 +50,6 @@ static float micBack_output[FFT_SIZE];
 #define SOUND_SPEED			343 //value in m/s
 
 //Array containing latest recorded volume for each microphone
-static uint16_t mic_volume[MIC_COUNT];
 
 
 
@@ -75,10 +74,11 @@ float determin_argument (float* data_mag, float* data_dft)
 		}
 	}
 
-	ratio = data_dft[2*max_norm_index+1]/data_dft[2*max_norm_index+1];
+	ratio = (float)(data_dft[2*max_norm_index+1]/data_dft[2*max_norm_index]);
+
 
 	//Approximation of arctan
-	return (ratio - ((ratio*ratio*ratio)/3));
+	return (ratio - (float)((ratio*ratio*ratio)/3));
 }
 
 
@@ -88,8 +88,7 @@ void determin_sound_origin (float* data_mag1, float* data_dft1,
 	float time_shift = determin_argument (data_mag1, data_dft1) -
 					   determin_argument (data_mag2, data_dft2);
 
-	chprintf((BaseSequentialStream *)&SD3, "mic_front = %d%\r\n\n", mic_volume[MIC_FRONT]);
-	chprintf((BaseSequentialStream *)&SD3, "mic_back = %d%\r\n\n", mic_volume[MIC_BACK]);
+	chprintf((BaseSequentialStream *)&SD3, "time shift = %d%\r\n\n", time_shift);
 }
 
 /*
@@ -156,7 +155,6 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 	*
 	*/
 
-	int16_t max_value[4]={INT16_MIN}, min_value[4]={INT16_MAX};
 	static uint16_t nb_samples = 0;
 	static uint8_t mustSend = 0;
 
@@ -217,9 +215,9 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 		nb_samples = 0;
 		mustSend++;
 
-		sound_remote(micLeft_output);
-		//determin_sound_origin ();
-		//chprintf((BaseSequentialStream *)&SD3, "%u%\r\n\n", mic_volume[MIC_FRONT]);
+		//sound_remote(micLeft_output);
+		determin_sound_origin (micFront_output, micFront_cmplx_input,
+							   micBack_output, micBack_cmplx_input);
 
 	}
 }
