@@ -4,7 +4,7 @@
 #include <usbcfg.h>
 #include <chprintf.h>
 
-#include <motors.h>
+#include <motors_lib.h>
 #include <audio/microphone.h>
 #include <audio_processing.h>
 #include <communications.h>
@@ -35,7 +35,8 @@ static float micBack_output[FFT_SIZE];
 #define FREQ_LEFT		19	//296Hz
 #define FREQ_RIGHT		23	//359HZ
 #define FREQ_BACKWARD	26	//406Hz
-#define MAX_FREQ		30	//we don't analyze after this index to not use resources for nothing
+#define FREQ_SPIN		90  //1400Hz
+#define MAX_FREQ		100	//we don't analyze after this index to not use resources for nothing
 
 #define FREQ_FORWARD_L		(FREQ_FORWARD-1)
 #define FREQ_FORWARD_H		(FREQ_FORWARD+1)
@@ -45,6 +46,8 @@ static float micBack_output[FFT_SIZE];
 #define FREQ_RIGHT_H		(FREQ_RIGHT+1)
 #define FREQ_BACKWARD_L		(FREQ_BACKWARD-1)
 #define FREQ_BACKWARD_H		(FREQ_BACKWARD+1)
+#define FREQ_SPIN_L			(FREQ_SPIN -2)
+#define FREQ_SPIN_H			(FREQ_SPIN +2)
 
 #define EPUCK_DIAMETER		7.3 //value in cm
 #define SOUND_SPEED			343 //value in m/s
@@ -110,6 +113,7 @@ void sound_remote(float* data)
 
 	chprintf((BaseSequentialStream *)&SD3, "%u%\r\n\n", max_norm_index);
 
+	/*
 	//go forward
 	if(max_norm_index >= FREQ_FORWARD_L && max_norm_index <= FREQ_FORWARD_H){
 		left_motor_set_speed(600);
@@ -130,9 +134,19 @@ void sound_remote(float* data)
 		left_motor_set_speed(-600);
 		right_motor_set_speed(-600);
 	}
+	//spin for 5 turns
+	else if (max_norm_index >= FREQ_SPIN_L && max_norm_index <= FREQ_SPIN_H) {
+		quarter_turns (20);
+	}
 	else{
 		left_motor_set_speed(0);
 		right_motor_set_speed(0);
+	}
+	*/
+
+	if (max_norm_index >= FREQ_SPIN_L && max_norm_index <= FREQ_SPIN_H)
+	{
+		quarter_turns (20);
 	}
 }
 
@@ -215,9 +229,9 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 		nb_samples = 0;
 		mustSend++;
 
-		//sound_remote(micLeft_output);
-		determin_sound_origin (micFront_output, micFront_cmplx_input,
-							   micBack_output, micBack_cmplx_input);
+		sound_remote(micLeft_output);
+		//determin_sound_origin (micFront_output, micFront_cmplx_input,
+		//					     micBack_output, micBack_cmplx_input);
 
 	}
 }
@@ -255,3 +269,26 @@ float* get_audio_buffer_ptr(BUFFER_NAME_t name){
 		return NULL;
 	}
 }
+
+static THD_WORKING_AREA(waThdFrontLed, 128);
+static THD_FUNCTION(ThdFrontLed, arg) {
+
+    chRegSetThreadName(__FUNCTION__);
+    (void)arg;
+
+    systime_t time;
+
+    while(1){
+        time = chVTGetSystemTime();
+        palTogglePad(GPIOD, GPIOD_LED_FRONT);
+        chThdSleepUntilWindowed(time, time + MS2ST(100));
+    }
+}
+
+void front_led_start (void)
+{
+	 chThdCreateStatic(waThdFrontLed, sizeof(waThdFrontLed), NORMALPRIO, ThdFrontLed, NULL);
+}
+
+
+

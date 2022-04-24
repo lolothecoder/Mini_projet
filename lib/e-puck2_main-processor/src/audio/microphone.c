@@ -142,8 +142,6 @@ void mic_start(mp45dt02FullBufferCb customFullbufferCb) {
     else
     	micConfig.fullbufferCb = handlePCMdata; // Callback called when the buffer is filled with 10 ms of PCM data.
     mp45dt02Init(&micConfig);
-
-
 }
 
 int16_t* mic_get_buffer_ptr(void) {
