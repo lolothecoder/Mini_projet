@@ -16,6 +16,8 @@
 #include <communications.h>
 #include <arm_math.h>
 
+#include <motors_lib.h>
+
 static void serial_start(void)
 {
 	static SerialConfig ser_cfg = {
@@ -38,17 +40,16 @@ int main(void)
     serial_start();
     usb_start();
     motors_init();
+    loop_start();
 
     static complex_float temp_tab[FFT_SIZE];
 
     static float send_tab[FFT_SIZE];
 
-    mic_start(&processAudioData);
+    //mic_start(&processAudioData);
 
     while (1)
-    {
-        wait_send_to_computer();
-    }
+    {}
 }
 
 #define STACK_CHK_GUARD 0xe2dee396
@@ -58,3 +59,4 @@ void __stack_chk_fail(void)
 {
     chSysHalt("Stack smashing detected");
 }
+
