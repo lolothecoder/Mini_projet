@@ -51,7 +51,7 @@ int main(void)
     motors_init();
     //loop_start();
     TOF_start();
-    //mic_start(&processAudioData);
+    mic_start(&processAudioData);
 
     while (1)
     {

@@ -146,7 +146,7 @@ void sound_remote(float* data)
 
 	if (max_norm_index >= FREQ_SPIN_L && max_norm_index <= FREQ_SPIN_H)
 	{
-		quarter_turns (20);
+		quarter_turns (20,1);
 	}
 }
 
