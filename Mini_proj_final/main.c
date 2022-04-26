@@ -49,10 +49,8 @@ int main(void)
     serial_start();
     usb_start();
     motors_init();
-    //loop_start();
     TOF_start();
-    mic_start(&processAudioData);
-
+    //loop_start();
     while (1)
     {
     	straight_then_turn(40);

@@ -5,15 +5,19 @@
 #include <main.h>
 #include <TOF.h>
 
-#define OBSTACLE_DISTANCE 	70
+#define OBSTACLE_DISTANCE 	80
 #define ADVANCE_DIST		2
 #define DIST_TO_SUB			10
+#define ERROR				12
+
+#define FIRST_IMPLEMENTATION
 
 static uint8_t obstacle = 0;
 static uint8_t counter = 0;
 static uint8_t save_dist = 1;
 static uint8_t dist_parc = 0;
 static uint8_t dist_to_add = 0;
+
 
 static THD_WORKING_AREA(waTOF, 256);
 static THD_FUNCTION(TOF, arg) {
@@ -26,6 +30,7 @@ static THD_FUNCTION(TOF, arg) {
 //    			chThdSleepMilliseconds(10);
 //    		}
 //    	}
+#ifdef FIRST_IMPLEMENTATION
     	if(obstacle == 0){
     		if(VL53L0X_get_dist_mm() < OBSTACLE_DISTANCE - DIST_TO_SUB){
     			obstacle = 1;
@@ -36,7 +41,7 @@ static THD_FUNCTION(TOF, arg) {
 
     	if(obstacle == 1){
     		quarter_turns(1,1);
-    		straight_line(ADVANCE_DIST);
+    		straight_line(ADVANCE_DIST, 1);
     		dist_parc += ADVANCE_DIST;
     		advance_till_safe();
     		save_dist = 2;
@@ -44,13 +49,18 @@ static THD_FUNCTION(TOF, arg) {
     		straight_line(ADVANCE_DIST+2);
     		dist_to_add += ADVANCE_DIST+2;
     		advance_till_safe();
-    		straight_line(dist_parc);
+    		straight_line(dist_parc, 1);
     		quarter_turns(1,1);
     		obstacle = 3;
     		save_dist = 1;
     		dist_parc = 0;
     	}
+#else
+
+
+#endif
     	chThdSleepMilliseconds(100);
+    	//chThdYield();
     }
 }
 
@@ -98,6 +108,16 @@ void advance_till_safe(void)
 	    }
 	}
 
+}
+
+void find_appropriate_dist(uint8_t distance, uint8_t margin){
+	while(VL53L0X_get_dist_mm() > distance || VL53L0X_get_dist_mm() < distance-margin){
+		if(VL53L0X_get_dist_mm() > distance){
+			straight_line(1, 1);
+		} else if(VL53L0X_get_dist_mm() < distance-margin){
+			straight_line(1, -1);
+		}
+	}
 }
 
 
