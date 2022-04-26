@@ -67,7 +67,6 @@ static float micBack_output[FFT_SIZE];
 void freq900_handler (void)
 {
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	quarter_turns (8);
 	if (get_moving ())
 	{
 		stop ();
@@ -78,6 +77,7 @@ void freq900_handler (void)
 		set_moving (0);
 	}
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	chThdSleepMilliseconds(1000);
 }
 
 /*
@@ -204,20 +204,23 @@ void sound_remote(float* data)
 
 	if (max_norm_index >= FREQ_900_L && max_norm_index <= FREQ_900_H)
 	{
+		/*
 		freq900_handler ();
+		*/
 	}
 
 	if (max_norm_index >= FREQ_1150_L && max_norm_index <= FREQ_1150_H)
 	{
+		/*
 		freq1150_handler ();
+		*/
 	}
 
 	if (max_norm_index >= FREQ_1800_L && max_norm_index <= FREQ_1800_H)
 	{
-
+		/*
 		freq1800_handler ();
-
-
+		*/
 	}
 }
 

@@ -1,6 +1,7 @@
 #include "ch.h"
 #include "hal.h"
 #include "motors.h"
+#include "motors_lib.h"
 
 #define MOTOR_SPEED   		600 // []
 #define NSTEP_ONE_TURN      1000 // number of step for 1 turn of the motor
@@ -62,4 +63,19 @@ static THD_FUNCTION(Loop, arg) {
 void loop_start(void){
 	chThdCreateStatic(waLoop, sizeof(waLoop), NORMALPRIO, Loop, NULL);
 }
+
+void stop (void)
+{
+	left_motor_set_speed (0);
+	right_motor_set_speed (0);
+}
+
+void go (void)
+{
+	left_motor_set_speed (MOTOR_SPEED);
+	right_motor_set_speed (MOTOR_SPEED);
+}
+
+
+
 
