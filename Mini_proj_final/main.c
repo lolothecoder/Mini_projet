@@ -49,13 +49,15 @@ int main(void)
     usb_start();
     motors_init();
     //loop_start();
-    TOF_start();
+    //TOF_start();
 
     //mic_start(&processAudioData);
-
+    //straight_line(5,-1);
     while (1)
     {
-    	straight_then_turn(40);
+    	quarter_turns(1,1);
+    	quarter_turns(1,-1);
+    	//straight_then_turn(40);
     }
 }
 

@@ -22,19 +22,20 @@ void init_pos_motor(void)
 	left_motor_set_pos(0);
 }
 
-void straight_line(uint8_t distance)
+void straight_line(uint8_t distance, int dir)
 {
 	init_pos_motor();
-	left_motor_set_speed(MOTOR_SPEED);
-	right_motor_set_speed(MOTOR_SPEED);
-	while(right_motor_get_pos() < distance* NSTEP_ONE_TURN / WHEEL_PERIMETER){
+	left_motor_set_speed(dir * MOTOR_SPEED);
+	right_motor_set_speed(dir * MOTOR_SPEED);
+	while(abs(right_motor_get_pos()) < distance* NSTEP_ONE_TURN / WHEEL_PERIMETER){
+		//chprintf((BaseSequentialStream *)&SD3, "MOTORS_POS = %d% \r\n\n", right_motor_get_pos());
 		if(get_dist_to_add() != 0 && get_obstacle() == 3){
 			right_motor_set_pos(right_motor_get_pos() + get_dist_to_add()* NSTEP_ONE_TURN / WHEEL_PERIMETER);
 			set_dist_to_add(0);
 		}
 		if (get_obstacle() == 3){
-			left_motor_set_speed(MOTOR_SPEED);
-			right_motor_set_speed(MOTOR_SPEED);
+			left_motor_set_speed(dir * MOTOR_SPEED);
+			right_motor_set_speed(dir * MOTOR_SPEED);
 			set_obstacle(0);
 		}
 
@@ -44,7 +45,7 @@ void straight_line(uint8_t distance)
 	right_motor_set_speed(0);
 }
 
-void quarter_turns(uint8_t num_of_quarter_turns, uint8_t dir)
+void quarter_turns(uint8_t num_of_quarter_turns, int dir)
 {
 	init_pos_motor();
 	left_motor_set_speed(-dir * MOTOR_SPEED);
@@ -59,7 +60,7 @@ void quarter_turns(uint8_t num_of_quarter_turns, uint8_t dir)
 	right_motor_set_speed(0);
 }
 
-void eight_times_two_turns(uint8_t num_of_sixteen_turns, uint8_t dir)
+void eight_times_two_turns(uint8_t num_of_sixteen_turns, int dir)
 {
 	init_pos_motor();
 	left_motor_set_speed(-dir * MOTOR_SPEED);
@@ -75,7 +76,7 @@ void eight_times_two_turns(uint8_t num_of_sixteen_turns, uint8_t dir)
 
 void straight_then_turn(uint8_t distance)
 {
-	straight_line(distance);
+	straight_line(distance, 1);
 	quarter_turns(1, 1);
 }
 
