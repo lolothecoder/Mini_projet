@@ -18,6 +18,9 @@
 
 #include <motors_lib.h>
 
+//Static variable to know if the robot is moving or not
+static uint8_t moving = 1;
+
 static void serial_start(void)
 {
 	static SerialConfig ser_cfg = {
@@ -32,7 +35,6 @@ static void serial_start(void)
 
 int main(void)
 {
-
     halInit();
     chSysInit();
     mpu_init();
@@ -41,14 +43,29 @@ int main(void)
     serial_start();
     usb_start();
     motors_init();
-    loop_start();
+    //loop_start();
 
     mic_start(&processAudioData);
 
+
     while (1)
     {
+    	if (moving)
+    	{
+    		straight_then_turn(10);
+    	}
 
     }
+}
+
+uint8_t get_moving (void)
+{
+	return moving;
+}
+
+void set_moving (uint8_t new_moving)
+{
+	moving = new_moving;
 }
 
 #define STACK_CHK_GUARD 0xe2dee396
