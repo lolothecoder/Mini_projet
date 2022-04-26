@@ -105,7 +105,8 @@ static const struct SerialDriverVMT vmt = {
  *
  * @init
  */
-void sdInit(void) {
+void sdInit(void)
+{
 
   sd_lld_init();
 }

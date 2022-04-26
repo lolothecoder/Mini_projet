@@ -9,6 +9,16 @@ extern "C" {
 #include "msgbus/messagebus.h"
 #include "parameter/parameter.h"
 
+/*
+ * To be able to retrieve the value of moving in other modules
+ */
+uint8_t get_moving (void);
+
+
+/*
+ * To be able to affect the value of moving in from other modules
+ */
+void set_moving (uint8_t new_moving);
 
 /** Robot wide IPC bus. */
 extern messagebus_t bus;

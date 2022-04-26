@@ -26,48 +26,110 @@ static float micRight_output[FFT_SIZE];
 static float micFront_output[FFT_SIZE];
 static float micBack_output[FFT_SIZE];
 
-
+#define THREE_TURNS		3
 #define MIN_VALUE_THRESHOLD	10000 
 
 #define MIC_COUNT		4	//number of microphones
-#define MIN_FREQ		10	//we don't analyze before this index to not use resources for nothing
-#define FREQ_FORWARD	16	//250Hz
-#define FREQ_LEFT		19	//296Hz
-#define FREQ_RIGHT		23	//359HZ
-#define FREQ_BACKWARD	26	//406Hz
-#define FREQ_SPIN		90  //1400Hz
-#define MAX_FREQ		100	//we don't analyze after this index to not use resources for nothing
 
-#define FREQ_FORWARD_L		(FREQ_FORWARD-1)
-#define FREQ_FORWARD_H		(FREQ_FORWARD+1)
-#define FREQ_LEFT_L			(FREQ_LEFT-1)
-#define FREQ_LEFT_H			(FREQ_LEFT+1)
+//we don't analyze before this index to not use resources for nothing
+#define MIN_FREQ		10
+
+#define FREQ_RIGHT		23	//359Hz
+#define FREQ_900		58  //900Hz
+#define FREQ_1150		74	//1150Hz
+#define FREQ_1400		90  //1400Hz
+#define FREQ_1800		115 //1800Hz
+
+//we don't analyze after this index to not use resources for nothing
+#define MAX_FREQ		130
+
+//Lower and upper bounds used within the sound_remote function
 #define FREQ_RIGHT_L		(FREQ_RIGHT-1)
 #define FREQ_RIGHT_H		(FREQ_RIGHT+1)
-#define FREQ_BACKWARD_L		(FREQ_BACKWARD-1)
-#define FREQ_BACKWARD_H		(FREQ_BACKWARD+1)
-#define FREQ_SPIN_L			(FREQ_SPIN -2)
-#define FREQ_SPIN_H			(FREQ_SPIN +2)
+#define FREQ_1400_L			(FREQ_1400 -2)
+#define FREQ_1400_H			(FREQ_1400 +2)
+#define FREQ_900_L			(FREQ_900 -2)
+#define FREQ_900_H			(FREQ_900 +2)
+#define FREQ_1150_L			(FREQ_1150 -2)
+#define FREQ_1150_H			(FREQ_1150 +2)
+#define FREQ_1800_L			(FREQ_1800 -2)
+#define FREQ_1800_H			(FREQ_1800 +2)
 
 #define EPUCK_DIAMETER		7.3 //value in cm
 #define SOUND_SPEED			343 //value in m/s
 
-//Array containing latest recorded volume for each microphone
+/*
+ * Function that handles what the robot should do when a sound around 900Hz
+ * is perceived :
+ * Stops the robot if it's moving and starts it if it's not moving
+ */
 
-
+void freq900_handler (void)
+{
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	if (get_moving ())
+	{
+		stop ();
+		set_moving (0);
+	} else
+	{
+		go ();
+		set_moving (0);
+	}
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	chThdSleepMilliseconds(1000);
+}
 
 /*
- * Function that determines from which direction
- * the sound is coming from
+ * Function that handles what the robot should do when a sound around 1150Hz
+ * is perceived :
+ * Makes the robot spin for 3 turns
+ */
+
+void  freq1150_handler (void)
+{
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	quarter_turns (THREE_TURNS, 1);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+}
+
+/*
+ * Function that handles what the robot should do when a sound around 1800Hz
+ * is perceived :
+ * Stop/go
+ */
+
+void freq1800_handler (void)
+{
+
+	if (get_moving ())
+	{
+		palTogglePad(GPIOB, GPIOB_LED_BODY);
+		stop ();
+		set_moving (0);
+	} else
+	{
+		palTogglePad(GPIOB, GPIOB_LED_BODY);
+		go ();
+		set_moving (1);
+	}
+	chThdSleepMilliseconds(1000);
+
+}
+
+/*
+ * Function that determines the argument of a complex value
  */
 
 float determin_argument (float* data_mag, float* data_dft)
 {
-	float max_norm = MIN_VALUE_THRESHOLD;
+	//float max_norm = MIN_VALUE_THRESHOLD;
 	float ratio =0;
-	int16_t max_norm_index = -1;
+
+	//int16_t max_norm_index = -1;
 
 	//search for the highest peak
+	/*
 	for (uint16_t i = MIN_FREQ ; i <= MAX_FREQ ; i++)
 	{
 		if (data_mag[i] > max_norm)
@@ -78,76 +140,107 @@ float determin_argument (float* data_mag, float* data_dft)
 	}
 
 	ratio = (float)(data_dft[2*max_norm_index+1]/data_dft[2*max_norm_index]);
+	*/
+
+	for (uint16_t i = 0; i < FFT_SIZE/2; ++i)
+	{
+		ratio += (float)(data_dft[2*i+1]/data_dft[2*i]);
+	}
+
+	ratio = ratio/FFT_SIZE;
 
 
 	//Approximation of arctan
 	return (ratio - (float)((ratio*ratio*ratio)/3));
 }
 
+/*
+ * Function that determines from which direction
+ * the sound is coming from
+ */
 
-void determin_sound_origin (float* data_mag1, float* data_dft1,
-							float* data_mag2, float* data_dft2)
+void determin_sound_origin (void)
 {
-	float time_shift = determin_argument (data_mag1, data_dft1) -
-					   determin_argument (data_mag2, data_dft2);
+	float time_shift_FB = determin_argument (micFront_output, micFront_cmplx_input) -
+					      determin_argument (micBack_output, micBack_cmplx_input);
 
-	chprintf((BaseSequentialStream *)&SD3, "time shift = %d%\r\n\n", time_shift);
+	time_shift_FB = (float)(time_shift_FB/((2*M_PI)/FFT_SIZE));
+
+	float time_shift_LR = determin_argument (micLeft_output, micLeft_cmplx_input) -
+						  determin_argument (micRight_output, micRight_cmplx_input);
+
+	time_shift_LR = (float)(time_shift_LR/((2*M_PI)/FFT_SIZE));
+
+	float cos_omega_FB = (float)((SOUND_SPEED*time_shift_FB*100)/EPUCK_DIAMETER);
+	float cos_omega_LR = (float)((SOUND_SPEED*time_shift_LR*100)/EPUCK_DIAMETER);
+
+	chprintf((BaseSequentialStream *)&SD3, "time shift FB = %d%\r\n\n", time_shift_FB);
+	chprintf((BaseSequentialStream *)&SD3, "time shift LR = %d%\r\n\n", time_shift_LR);
 }
 
 /*
 *	Simple function used to detect the highest value in a buffer
 *	and to execute a motor command depending on it
 */
+
 void sound_remote(float* data)
 {
 	float max_norm = MIN_VALUE_THRESHOLD;
 	int16_t max_norm_index = -1; 
 
 	//search for the highest peak
-	for(uint16_t i = MIN_FREQ ; i <= MAX_FREQ ; i++){
+	for(uint16_t i = MIN_FREQ ; i <= MAX_FREQ ; i++)
+	{
 		if(data[i] > max_norm){
 			max_norm = data[i];
 			max_norm_index = i;
 		}
 	}
 
-	chprintf((BaseSequentialStream *)&SD3, "%u%\r\n\n", max_norm_index);
-
-	/*
-	//go forward
-	if(max_norm_index >= FREQ_FORWARD_L && max_norm_index <= FREQ_FORWARD_H){
-		left_motor_set_speed(600);
-		right_motor_set_speed(600);
-	}
-	//turn left
-	else if(max_norm_index >= FREQ_LEFT_L && max_norm_index <= FREQ_LEFT_H){
-		left_motor_set_speed(-600);
-		right_motor_set_speed(600);
-	}
-	//turn right
-	else if(max_norm_index >= FREQ_RIGHT_L && max_norm_index <= FREQ_RIGHT_H){
-		left_motor_set_speed(600);
-		right_motor_set_speed(-600);
-	}
-	//go backward
-	else if(max_norm_index >= FREQ_BACKWARD_L && max_norm_index <= FREQ_BACKWARD_H){
-		left_motor_set_speed(-600);
-		right_motor_set_speed(-600);
-	}
-	//spin for 5 turns
-	else if (max_norm_index >= FREQ_SPIN_L && max_norm_index <= FREQ_SPIN_H) {
-		quarter_turns (20);
-	}
-	else{
-		left_motor_set_speed(0);
-		right_motor_set_speed(0);
-	}
-	*/
-
-	if (max_norm_index >= FREQ_SPIN_L && max_norm_index <= FREQ_SPIN_H)
+	if (max_norm_index >= FREQ_RIGHT_L && max_norm_index <= FREQ_RIGHT_H)
 	{
-		quarter_turns (20,1);
+		determin_sound_origin ();
 	}
+
+	if (max_norm_index >= FREQ_900_L && max_norm_index <= FREQ_900_H)
+	{
+		/*
+		freq900_handler ();
+		*/
+	}
+
+	if (max_norm_index >= FREQ_1150_L && max_norm_index <= FREQ_1150_H)
+	{
+		/*
+		freq1150_handler ();
+		*/
+	}
+
+	if (max_norm_index >= FREQ_1800_L && max_norm_index <= FREQ_1800_H)
+	{
+		/*
+		freq1800_handler ();
+		*/
+	}
+}
+
+/*
+ * Function that performs the FFT and determines the magnitude of each
+ * DFT for every microphone => makes the "process_audio" function easier
+ * to read
+ */
+
+void compute_fft_and_mag (void)
+{
+	doFFT_optimized(FFT_SIZE, micRight_cmplx_input);
+	doFFT_optimized(FFT_SIZE, micLeft_cmplx_input);
+	doFFT_optimized(FFT_SIZE, micFront_cmplx_input);
+	doFFT_optimized(FFT_SIZE, micBack_cmplx_input);
+
+	arm_cmplx_mag_f32(micRight_cmplx_input, micRight_output, FFT_SIZE);
+	arm_cmplx_mag_f32(micLeft_cmplx_input, micLeft_output, FFT_SIZE);
+	arm_cmplx_mag_f32(micFront_cmplx_input, micFront_output, FFT_SIZE);
+	arm_cmplx_mag_f32(micBack_cmplx_input, micBack_output, FFT_SIZE);
 }
 
 /*
@@ -159,21 +252,14 @@ void sound_remote(float* data)
 *							so we have [micRight1, micLeft1, micBack1, micFront1, micRight2, etc...]
 *	uint16_t num_samples	Tells how many data we get in total (should always be 640)
 */
-void processAudioData(int16_t *data, uint16_t num_samples){
-
-	/*
-	*
-	*	We get 160 samples per mic every 10ms
-	*	So we fill the samples buffers to reach
-	*	1024 samples, then we compute the FFTs.
-	*
-	*/
-
+void processAudioData(int16_t *data, uint16_t num_samples)
+{
 	static uint16_t nb_samples = 0;
 	static uint8_t mustSend = 0;
 
 	//loop to fill the buffers
-	for(uint16_t i = 0 ; i < num_samples ; i+=4){
+	for(uint16_t i = 0 ; i < num_samples ; i+=4)
+	{
 		//construct an array of complex numbers. Put 0 to the imaginary part
 		micRight_cmplx_input[nb_samples] = (float)data[i + MIC_RIGHT];
 		micLeft_cmplx_input[nb_samples] = (float)data[i + MIC_LEFT];
@@ -189,49 +275,26 @@ void processAudioData(int16_t *data, uint16_t num_samples){
 
 		nb_samples++;
 
-		//stop when buffer is full
 		if(nb_samples >= (2 * FFT_SIZE)){
 			break;
 		}
 	}
 
 	if(nb_samples >= (2 * FFT_SIZE)){
-		/*	FFT proccessing
-		*
-		*	This FFT function stores the results in the input buffer given.
-		*	This is an "In Place" function. 
-		*/
 
-		doFFT_optimized(FFT_SIZE, micRight_cmplx_input);
-		doFFT_optimized(FFT_SIZE, micLeft_cmplx_input);
-		doFFT_optimized(FFT_SIZE, micFront_cmplx_input);
-		doFFT_optimized(FFT_SIZE, micBack_cmplx_input);
+		compute_fft_and_mag ();
 
-		/*	Magnitude processing
-		*
-		*	Computes the magnitude of the complex numbers and
-		*	stores them in a buffer of FFT_SIZE because it only contains
-		*	real numbers.
-		*
-		*/
-		arm_cmplx_mag_f32(micRight_cmplx_input, micRight_output, FFT_SIZE);
-		arm_cmplx_mag_f32(micLeft_cmplx_input, micLeft_output, FFT_SIZE);
-		arm_cmplx_mag_f32(micFront_cmplx_input, micFront_output, FFT_SIZE);
-		arm_cmplx_mag_f32(micBack_cmplx_input, micBack_output, FFT_SIZE);
-
-		//sends only one FFT result over 10 for 1 mic to not flood the computer
-		//sends to UART3
 		if(mustSend > 8){
 			//signals to send the result to the computer
 			chBSemSignal(&sendToComputer_sem);
 			mustSend = 0;
 		}
+
 		nb_samples = 0;
 		mustSend++;
 
+
 		sound_remote(micLeft_output);
-		//determin_sound_origin (micFront_output, micFront_cmplx_input,
-		//					     micBack_output, micBack_cmplx_input);
 
 	}
 }
@@ -281,7 +344,7 @@ static THD_FUNCTION(ThdFrontLed, arg) {
     while(1){
         time = chVTGetSystemTime();
         palTogglePad(GPIOD, GPIOD_LED_FRONT);
-        chThdSleepUntilWindowed(time, time + MS2ST(100));
+        chThdSleepUntilWindowed(time, time + MS2ST(1000));
     }
 }
 

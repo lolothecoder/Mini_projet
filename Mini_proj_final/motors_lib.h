@@ -20,4 +20,10 @@ void straight_then_turn(uint8_t distance);
 //Initializes loop thread
 void loop_start(void);
 
+//Sets speed to 0
+void stop (void);
+
+//Sets the speed to MOTOR_SPEED
+void go (void);
+
 #endif /* MOTORS_LIB_H */
