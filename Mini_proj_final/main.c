@@ -58,7 +58,7 @@ int main(void)
     {
     	if (moving)
     	{
-    		straight_then_turn(10);
+    		straight_then_turn(30);
     	}
     }
 }

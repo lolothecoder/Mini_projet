@@ -3,6 +3,7 @@
 #include <chprintf.h>
 #include <sensors/VL53L0X/VL53L0X.h>
 #include <main.h>
+#include <motors_lib.h>
 #include <TOF.h>
 
 #define OBSTACLE_DISTANCE 	80
@@ -46,7 +47,7 @@ static THD_FUNCTION(TOF, arg) {
     		advance_till_safe();
     		save_dist = 2;
     		obstacle = 1;
-    		straight_line(ADVANCE_DIST+2);
+    		straight_line(ADVANCE_DIST+2,1);
     		dist_to_add += ADVANCE_DIST+2;
     		advance_till_safe();
     		straight_line(dist_parc, 1);
@@ -93,7 +94,7 @@ void advance_till_safe(void)
 	    if(VL53L0X_get_dist_mm() < OBSTACLE_DISTANCE){
 	    	eight_times_two_turns(counter,1);
 	    	counter = 0;
-	    	straight_line(ADVANCE_DIST);
+	    	straight_line(ADVANCE_DIST,1);
 	    	if(save_dist == 1){
 	    		dist_parc += ADVANCE_DIST;
 	    	}
