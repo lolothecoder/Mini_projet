@@ -7,6 +7,7 @@
 #define MOTOR_SPEED   		600 // []
 #define SINGLE_TURN			1
 
+#define MOTOR_SPEED   		600
 // Initialize right motor position to 0
 //IMPORTANT TO CALL BEFORE THE WHILE LOOP
 void init_pos_motor(void);
