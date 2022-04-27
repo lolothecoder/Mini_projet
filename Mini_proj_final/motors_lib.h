@@ -1,6 +1,7 @@
 #ifndef MOTORS_LIB_H
 #define MOTORS_LIB_H
 
+#define MOTOR_SPEED   		600
 // Initialize right motor position to 0
 //IMPORTANT TO CALL BEFORE THE WHILE LOOP
 void init_pos_motor(void);

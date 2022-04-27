@@ -26,7 +26,11 @@ static float micRight_output[FFT_SIZE];
 static float micFront_output[FFT_SIZE];
 static float micBack_output[FFT_SIZE];
 
-#define THREE_TURNS		3
+#define TWO_TURNS			8
+#define RIGHT				1
+#define LEFT				0
+#define GO					1
+#define STOP				0
 #define MIN_VALUE_THRESHOLD	10000 
 
 #define MIC_COUNT		4	//number of microphones
@@ -38,7 +42,7 @@ static float micBack_output[FFT_SIZE];
 #define FREQ_900		58  //900Hz
 #define FREQ_1150		74	//1150Hz
 #define FREQ_1400		90  //1400Hz
-#define FREQ_1800		115 //1800Hz
+//#define FREQ_1800		115 //1800Hz
 
 //we don't analyze after this index to not use resources for nothing
 #define MAX_FREQ		130
@@ -52,70 +56,12 @@ static float micBack_output[FFT_SIZE];
 #define FREQ_900_H			(FREQ_900 +2)
 #define FREQ_1150_L			(FREQ_1150 -2)
 #define FREQ_1150_H			(FREQ_1150 +2)
-#define FREQ_1800_L			(FREQ_1800 -2)
-#define FREQ_1800_H			(FREQ_1800 +2)
+//#define FREQ_1800_L			(FREQ_1800 -4)
+//#define FREQ_1800_H			(FREQ_1800 +4)
 
 #define EPUCK_DIAMETER		7.3 //value in cm
 #define SOUND_SPEED			343 //value in m/s
 
-/*
- * Function that handles what the robot should do when a sound around 900Hz
- * is perceived :
- * Stops the robot if it's moving and starts it if it's not moving
- */
-
-void freq900_handler (void)
-{
-	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	if (get_moving ())
-	{
-		stop ();
-		set_moving (0);
-	} else
-	{
-		go ();
-		set_moving (0);
-	}
-	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	chThdSleepMilliseconds(1000);
-}
-
-/*
- * Function that handles what the robot should do when a sound around 1150Hz
- * is perceived :
- * Makes the robot spin for 3 turns
- */
-
-void  freq1150_handler (void)
-{
-	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	quarter_turns (THREE_TURNS, 1);
-	palTogglePad(GPIOB, GPIOB_LED_BODY);
-}
-
-/*
- * Function that handles what the robot should do when a sound around 1800Hz
- * is perceived :
- * Stop/go
- */
-
-void freq1800_handler (void)
-{
-
-	if (get_moving ())
-	{
-		palTogglePad(GPIOB, GPIOB_LED_BODY);
-		stop ();
-		set_moving (0);
-	} else
-	{
-		palTogglePad(GPIOB, GPIOB_LED_BODY);
-		go ();
-		set_moving (1);
-	}
-	chThdSleepMilliseconds(1000);
-
-}
 
 /*
  * Function that determines the argument of a complex value
@@ -183,6 +129,81 @@ void determin_sound_origin (void)
 *	and to execute a motor command depending on it
 */
 
+/*
+ * Function that handles what the robot should do when a sound around 900Hz
+ * is perceived :
+ * Stops the robot if it's moving and starts it if it's not moving
+ */
+
+void freq900_handler (void)
+{
+	determin_sound_origin ();
+}
+
+/*
+ * Function that handles what the robot should do when a sound around 1150Hz
+ * is perceived :
+ * Makes the robot spin for 3 turns
+ */
+
+void  freq1150_handler (void)
+{
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	quarter_turns (TWO_TURNS, RIGHT);
+	/*
+	quarter_turns (TWO_TURNS, LEFT);
+	*/
+
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+}
+
+/*
+ * Function that handles what the robot should do when a sound around 1400Hz
+ * is perceived :
+ * Stop/go
+ */
+
+void freq1400_handler (void)
+{
+	if (get_moving ())
+	{
+		palTogglePad(GPIOB, GPIOB_LED_BODY);
+		stop ();
+		set_moving (0);
+	} else
+	{
+		palTogglePad(GPIOB, GPIOB_LED_BODY);
+		go ();
+		set_moving (1);
+	}
+	chThdSleepMilliseconds(1000);
+}
+
+/*
+ * Function that handles what the robot should do when a sound around 1800Hz
+ * is perceived :
+ * determines sound origin and goes towards it
+ * NOT IMPLEMENTED YET
+ */
+/*
+void freq1800_handler (void)
+{
+	chprintf((BaseSequentialStream *)&SD3, "In freq1800 %d%\r\n\n");
+	if (get_moving ())
+	{
+		palTogglePad(GPIOB, GPIOB_LED_BODY);
+		stop ();
+		set_moving (STOP);
+	} else
+	{
+		palTogglePad(GPIOB, GPIOB_LED_BODY);
+		go ();
+		set_moving (GO);
+	}
+	chThdSleepMilliseconds(1000);
+}
+*/
+
 void sound_remote(float* data)
 {
 	float max_norm = MIN_VALUE_THRESHOLD;
@@ -204,24 +225,24 @@ void sound_remote(float* data)
 
 	if (max_norm_index >= FREQ_900_L && max_norm_index <= FREQ_900_H)
 	{
-		/*
 		freq900_handler ();
-		*/
 	}
 
 	if (max_norm_index >= FREQ_1150_L && max_norm_index <= FREQ_1150_H)
 	{
-		/*
 		freq1150_handler ();
-		*/
 	}
 
+	if (max_norm_index >= FREQ_1400_L && max_norm_index <= FREQ_1400_H)
+	{
+		freq1400_handler ();
+	}
+	/*
 	if (max_norm_index >= FREQ_1800_L && max_norm_index <= FREQ_1800_H)
 	{
-		/*
 		freq1800_handler ();
-		*/
 	}
+	*/
 }
 
 /*
@@ -293,9 +314,7 @@ void processAudioData(int16_t *data, uint16_t num_samples)
 		nb_samples = 0;
 		mustSend++;
 
-
 		sound_remote(micLeft_output);
-
 	}
 }
 

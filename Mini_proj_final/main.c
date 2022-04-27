@@ -23,7 +23,7 @@
 //static int status = 0;
 
 //Static variable to know if the robot is moving or not
-static uint8_t moving = 1;
+static int8_t moving = 1;
 
 static void serial_start(void)
 {
@@ -47,11 +47,12 @@ int main(void)
     mpu_init();
     front_led_start ();
 
-    VL53L0X_start();
+    $VL53L0X_start();
     serial_start();
     usb_start();
     motors_init();
-    TOF_start();
+    mic_start(&processAudioData);
+    //TOF_start();
     //loop_start();
 
     while (1)
@@ -63,12 +64,12 @@ int main(void)
     }
 }
 
-uint8_t get_moving (void)
+int8_t get_moving (void)
 {
 	return moving;
 }
 
-void set_moving (uint8_t new_moving)
+void set_moving (int8_t new_moving)
 {
 	moving = new_moving;
 }
