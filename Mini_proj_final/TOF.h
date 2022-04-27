@@ -9,10 +9,10 @@
 #define TOF_H_
 
 void TOF_start(void);
-uint8_t get_obstacle(void);
-void set_obstacle(uint8_t obst);
-void advance_till_safe(void);
-uint8_t get_dist_to_add(void);
-void set_dist_to_add(uint8_t dist);
-void find_appropriate_dist(uint8_t distance, uint8_t margin);
+void reset_distances(void);
+bool find_dist(uint8_t distance);
+uint16_t distance_till_safe(void);
+bool multi_dist(uint8_t samples, uint8_t distance);
+int get_closer(uint8_t distance);
+uint8_t search(void);
 #endif /* TOF_H_ */
