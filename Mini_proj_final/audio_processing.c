@@ -27,8 +27,6 @@ static float micFront_output[FFT_SIZE];
 static float micBack_output[FFT_SIZE];
 
 #define TWO_TURNS			8
-#define RIGHT				1
-#define LEFT				0
 #define GO					1
 #define STOP				0
 #define MIN_VALUE_THRESHOLD	10000 
@@ -125,11 +123,6 @@ void determin_sound_origin (void)
 }
 
 /*
-*	Simple function used to detect the highest value in a buffer
-*	and to execute a motor command depending on it
-*/
-
-/*
  * Function that handles what the robot should do when a sound around 900Hz
  * is perceived :
  * Stops the robot if it's moving and starts it if it's not moving
@@ -149,11 +142,8 @@ void freq900_handler (void)
 void  freq1150_handler (void)
 {
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	quarter_turns (TWO_TURNS, RIGHT);
-	/*
-	quarter_turns (TWO_TURNS, LEFT);
-	*/
-
+	quarter_turns (TWO_TURNS, LEFT_TURN);
+	quarter_turns (TWO_TURNS, RIGHT_TURN);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 }
 
@@ -202,6 +192,11 @@ void freq1800_handler (void)
 	}
 	chThdSleepMilliseconds(1000);
 }
+*/
+
+/*
+*	Simple function used to detect the highest value in a buffer
+*	and to execute a motor command depending on it
 */
 
 void sound_remote(float* data)
