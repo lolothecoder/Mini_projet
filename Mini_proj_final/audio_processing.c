@@ -67,13 +67,12 @@ static float micBack_output[FFT_SIZE];
 
 float determin_argument (float* data_mag, float* data_dft)
 {
-	//float max_norm = MIN_VALUE_THRESHOLD;
+	float max_norm = MIN_VALUE_THRESHOLD;
 	float ratio =0;
 
-	//int16_t max_norm_index = -1;
+	int16_t max_norm_index = -1;
 
 	//search for the highest peak
-	/*
 	for (uint16_t i = MIN_FREQ ; i <= MAX_FREQ ; i++)
 	{
 		if (data_mag[i] > max_norm)
@@ -84,12 +83,13 @@ float determin_argument (float* data_mag, float* data_dft)
 	}
 
 	ratio = (float)(data_dft[2*max_norm_index+1]/data_dft[2*max_norm_index]);
-	*/
 
+	/*
 	for (uint16_t i = 0; i < FFT_SIZE/2; ++i)
 	{
 		ratio += (float)(data_dft[2*i+1]/data_dft[2*i]);
 	}
+	*/
 
 	ratio = ratio/FFT_SIZE;
 
