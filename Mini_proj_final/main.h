@@ -12,13 +12,13 @@ extern "C" {
 /*
  * To be able to retrieve the value of moving in other modules
  */
-uint8_t get_moving (void);
+int8_t get_moving (void);
 
 
 /*
  * To be able to affect the value of moving in from other modules
  */
-void set_moving (uint8_t new_moving);
+void set_moving (int8_t new_moving);
 
 /** Robot wide IPC bus. */
 extern messagebus_t bus;
