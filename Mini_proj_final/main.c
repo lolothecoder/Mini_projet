@@ -48,7 +48,7 @@ int main(void)
     mpu_init();
     palTogglePad(GPIOD, GPIOD_LED_FRONT);
 
-    $VL53L0X_start();
+    VL53L0X_start();
     serial_start();
     usb_start();
     motors_init();
@@ -60,6 +60,7 @@ int main(void)
     	if (moving)
     	{
     		straight_then_turn(LOOP_DISTANCE);
+    		//get_closer(60);
     	}
     }
 }
