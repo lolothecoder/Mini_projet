@@ -20,7 +20,7 @@
 #include <sensors/VL53L0X/VL53L0X.h>
 #include <TOF.h>
 
-#define LOOP_DISTANCE	40
+#define LOOP_DISTANCE	30
 //static int status = 0;
 
 //Static variable to know if the robot is moving or not
@@ -46,7 +46,7 @@ int main(void)
     halInit();
     chSysInit();
     mpu_init();
-    //front_led_start ();
+    palTogglePad(GPIOD, GPIOD_LED_FRONT);
 
     $VL53L0X_start();
     serial_start();
