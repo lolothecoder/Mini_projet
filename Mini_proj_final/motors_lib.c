@@ -6,7 +6,7 @@
 #include <chprintf.h>
 
 #include <motors_lib.h>
-#include "math.h"
+#include <stdlib.h>
 
 #define NSTEP_ONE_TURN      1000 // number of step for 1 turn of the motor
 #define NSTEP_ONE_EL_TURN   4  //number of steps to do 1 electrical turn
@@ -79,6 +79,11 @@ void stop (void)
 	right_motor_set_speed (0);
 }
 
+void infinite_stop(void){
+	stop();
+	while(1){}
+}
+
 void go (void)
 {
 	left_motor_set_speed (MOTOR_SPEED);
@@ -92,3 +97,15 @@ int dist_to_steps(int distance){
 int steps_to_dist(int steps){
 	return steps*  WHEEL_PERIMETER / NSTEP_ONE_TURN ;
 }
+
+int conditional_advance(uint8_t distance, uint8_t dir, bool continue_advance){
+	init_pos_motor();
+	left_motor_set_speed(dir * MOTOR_SPEED);
+	right_motor_set_speed(dir * MOTOR_SPEED);
+	while(abs(right_motor_get_pos()) < distance* NSTEP_ONE_TURN / WHEEL_PERIMETER && continue_advance){}
+	left_motor_set_speed(0);
+	right_motor_set_speed(0);
+	return abs(right_motor_get_pos());
+}
+
+
