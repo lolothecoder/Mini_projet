@@ -59,6 +59,7 @@ int main(void)
     	if (moving)
     	{
     		straight_then_turn(LOOP_DISTANCE);
+    		//get_closer(60);
     	}
     }
 }

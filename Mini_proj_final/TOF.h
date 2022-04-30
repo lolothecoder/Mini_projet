@@ -15,4 +15,5 @@ uint16_t distance_till_safe(void);
 bool multi_dist(uint8_t samples, uint8_t distance);
 int get_closer(uint8_t distance);
 uint8_t search(void);
+bool object_removed(uint8_t index);
 #endif /* TOF_H_ */
