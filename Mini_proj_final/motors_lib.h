@@ -40,4 +40,8 @@ int dist_to_steps(int distance);
 
 int steps_to_dist(int steps);
 
+void infinite_stop(void);
+
+int conditional_advance(uint8_t distance, uint8_t dir,  bool continue_advance);
+
 #endif /* MOTORS_LIB_H */
