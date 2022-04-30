@@ -39,6 +39,10 @@ static float micRight_output[FFT_SIZE];
 static float micFront_output[FFT_SIZE];
 static float micBack_output[FFT_SIZE];
 
+#define TWO_TURNS			8
+#define GO					1
+#define STOP				0
+#define MIN_VALUE_THRESHOLD	10000 
 
 #define SAMPLE_SIZE				10
 #define MIN_DELTA_X_THRESHOLD	10 //If the delta x value is smaller than this threshold
@@ -84,6 +88,7 @@ static int16_t max_norm_index = -1;
 #define FREQ_900		58  //900Hz
 #define FREQ_1150		74	//1150Hz
 #define FREQ_1400		90  //1400Hz
+
 
 //we don't analyze after this index to not use resources for nothing
 #define MAX_FREQ		100
