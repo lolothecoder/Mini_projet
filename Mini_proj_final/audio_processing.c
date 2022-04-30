@@ -5,11 +5,24 @@
 #include <chprintf.h>
 
 #include <motors_lib.h>
+#include "motors.h"
 #include <audio/microphone.h>
 #include <audio_processing.h>
 #include <communications.h>
 #include <fft.h>
 #include <arm_math.h>
+
+typedef enum {
+	DEG_0 = 0,
+	DEG_45_RIGHT,
+	DEG_90_RIGHT,
+	DEG_135_RIGHT,
+	DEG_180,
+	DEG_45_LEFT,
+	DEG_90_LEFT,
+	DEG_135_LEFT,
+	DONT_MOVE //Extra case that shouldn't ever be triggered
+} SOUND_ORIENTATION_t;
 
 //semaphore
 static BSEMAPHORE_DECL(sendToComputer_sem, TRUE);
@@ -26,12 +39,43 @@ static float micRight_output[FFT_SIZE];
 static float micFront_output[FFT_SIZE];
 static float micBack_output[FFT_SIZE];
 
+
+#define SAMPLE_SIZE				10
+#define MIN_DELTA_X_THRESHOLD	10 //If the delta x value is smaller than this threshold
+								   //then the sound is considered to be perpendicular to
+								   //the microphone axis in question
+
+//Arrays containing delta x values
+static float tab_x_FB[SAMPLE_SIZE];
+static float tab_x_LR[SAMPLE_SIZE];
+
+/*
+ * Variables containing the averages of the delta_x values
+ * that allow us to determine where the sound is coming
+ * from
+ */
+
+static float x_FB_avg = 0;
+static float x_LR_avg = 0;
+
+
+/*
+ * Variable that allows to control whether we've collected enough
+ * delta_x samples to compute the average
+ */
+static int8_t counter_x = 0;
+
+/*
+ * Gives us the current frequency that's being detected
+ */
+
+static int16_t max_norm_index = -1;
+
+
 #define TWO_TURNS			8
 #define GO					1
 #define STOP				0
 #define MIN_VALUE_THRESHOLD	10000 
-
-#define MIC_COUNT		4	//number of microphones
 
 //we don't analyze before this index to not use resources for nothing
 #define MIN_FREQ		10
@@ -40,62 +84,230 @@ static float micBack_output[FFT_SIZE];
 #define FREQ_900		58  //900Hz
 #define FREQ_1150		74	//1150Hz
 #define FREQ_1400		90  //1400Hz
-//#define FREQ_1800		115 //1800Hz
 
 //we don't analyze after this index to not use resources for nothing
-#define MAX_FREQ		130
+#define MAX_FREQ		100
 
 //Lower and upper bounds used within the sound_remote function
-#define FREQ_RIGHT_L		(FREQ_RIGHT-1)
-#define FREQ_RIGHT_H		(FREQ_RIGHT+1)
+#define FREQ_RIGHT_L		(FREQ_RIGHT-2)
+#define FREQ_RIGHT_H		(FREQ_RIGHT+2)
 #define FREQ_1400_L			(FREQ_1400 -2)
 #define FREQ_1400_H			(FREQ_1400 +2)
 #define FREQ_900_L			(FREQ_900 -2)
 #define FREQ_900_H			(FREQ_900 +2)
 #define FREQ_1150_L			(FREQ_1150 -2)
 #define FREQ_1150_H			(FREQ_1150 +2)
-//#define FREQ_1800_L			(FREQ_1800 -4)
-//#define FREQ_1800_H			(FREQ_1800 +4)
 
-#define EPUCK_DIAMETER		7.3 //value in cm
+#define EPUCK_DIAMETER		73 //value in mm
 #define SOUND_SPEED			343 //value in m/s
+#define WHISTLE_DISTANCE	10 //value in cm
 
 
 /*
- * Function that determines the argument of a complex value
+ * Simple Delay Function
  */
 
-float determin_argument (float* data_mag, float* data_dft)
+void delay(unsigned int n)
 {
-	//float max_norm = MIN_VALUE_THRESHOLD;
-	float ratio =0;
+    while (n--) {
+        __asm__ volatile ("nop");
+    }
+}
 
-	//int16_t max_norm_index = -1;
+/*
+ * Makes body led blink 4 times at certain frequency
+ */
 
-	//search for the highest peak
-	/*
-	for (uint16_t i = MIN_FREQ ; i <= MAX_FREQ ; i++)
-	{
-		if (data_mag[i] > max_norm)
-		{
-			max_norm = data_mag[i];
-			max_norm_index = i;
-		}
-	}
+void blink_body (void)
+{
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	delay (SystemCoreClock/32);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	delay (SystemCoreClock/32);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	delay (SystemCoreClock/32);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	delay (SystemCoreClock/32);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	delay (SystemCoreClock/32);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	delay (SystemCoreClock/32);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	delay (SystemCoreClock/32);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+}
 
-	ratio = (float)(data_dft[2*max_norm_index+1]/data_dft[2*max_norm_index]);
-	*/
+/*
+ * Function that determines the argument of a complex value :
+ */
 
-	for (uint16_t i = 0; i < FFT_SIZE/2; ++i)
-	{
-		ratio += (float)(data_dft[2*i+1]/data_dft[2*i]);
-	}
-
-	ratio = ratio/FFT_SIZE;
-
+float determin_argument (float* data_dft)
+{
+	float ratio = (float)(data_dft[2*max_norm_index+1]/data_dft[2*max_norm_index]);
+	ratio = ratio - ((float)((ratio*ratio*ratio)/3));
 
 	//Approximation of arctan
 	return (ratio - (float)((ratio*ratio*ratio)/3));
+}
+
+/*
+ * Function that determines the sound orientation state for the switch
+ * within the change orientation function
+ */
+
+SOUND_ORIENTATION_t determin_sound_state (void)
+{
+	if (abs(x_LR_avg) < MIN_DELTA_X_THRESHOLD)
+	{
+		if (x_FB_avg > 0) return DEG_0; else return DEG_180;
+	}
+
+	if (abs(x_FB_avg) < MIN_DELTA_X_THRESHOLD)
+	{
+		if (x_LR_avg < 0) return DEG_90_RIGHT; else return DEG_90_LEFT;
+	}
+
+	if ((abs(x_FB_avg) > MIN_DELTA_X_THRESHOLD) &&
+		(abs(x_LR_avg) > MIN_DELTA_X_THRESHOLD))
+	{
+		if ((x_FB_avg < 0) && (x_LR_avg < 0)) return DEG_135_RIGHT;
+		if ((x_FB_avg < 0) && (x_LR_avg > 0)) return DEG_135_LEFT;
+		if ((x_FB_avg > 0) && (x_LR_avg < 0)) return DEG_45_RIGHT;
+		if ((x_FB_avg > 0) && (x_LR_avg > 0)) return DEG_45_LEFT;
+	}
+	return DONT_MOVE;
+}
+
+/*
+ * These functions are called within the switch and make the robot
+ * move towards the sound source
+ */
+
+void move_deg_0 (void)
+{
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	straight_line (WHISTLE_DISTANCE, STRAIGHT);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	stop ();
+	blink_body ();
+	go ();
+}
+
+void move_deg_45_right (void)
+{
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	eight_times_two_turns (2, RIGHT_TURN, MOTOR_SPEED);
+	straight_line (WHISTLE_DISTANCE, STRAIGHT);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	stop ();
+	blink_body ();
+	go ();
+}
+
+void move_deg_90_right (void)
+{
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	quarter_turns (1, RIGHT_TURN);
+	straight_line (WHISTLE_DISTANCE, STRAIGHT);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	stop ();
+	blink_body ();
+	go ();
+}
+
+void move_deg_135_right (void)
+{
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	quarter_turns (1, RIGHT_TURN);
+	eight_times_two_turns (2, RIGHT_TURN, MOTOR_SPEED);
+	straight_line (WHISTLE_DISTANCE, STRAIGHT);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	stop ();
+	blink_body ();
+	go ();
+}
+
+void move_deg_180 (void)
+{
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	quarter_turns (2, RIGHT_TURN);
+	straight_line (WHISTLE_DISTANCE, STRAIGHT);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	stop ();
+	blink_body ();
+	go ();
+}
+
+void move_deg_45_left (void)
+{
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	eight_times_two_turns (2, LEFT_TURN, MOTOR_SPEED);
+	straight_line (WHISTLE_DISTANCE, STRAIGHT);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	stop ();
+	blink_body ();
+	go ();
+}
+
+void move_deg_90_left (void)
+{
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	quarter_turns (1, LEFT_TURN);
+	straight_line (WHISTLE_DISTANCE, STRAIGHT);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	stop ();
+	blink_body ();
+	go ();
+}
+
+void move_deg_135_left (void)
+{
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	quarter_turns (1, LEFT_TURN);
+	eight_times_two_turns (2, LEFT_TURN, MOTOR_SPEED);
+	straight_line (WHISTLE_DISTANCE, STRAIGHT);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	stop ();
+	blink_body ();
+	go ();
+}
+
+/* Function that orients the robot to the direction that the
+ * sound is coming from + move 10 cm towards it
+ * FINAL ONE
+ */
+
+void move_to_sound (void)
+{
+	switch (determin_sound_state ())
+	{
+		case DEG_0 :
+			move_deg_0 ();
+			break;
+		case DEG_45_RIGHT :
+			move_deg_45_right ();
+			break;
+		case DEG_90_RIGHT :
+			move_deg_90_right ();
+			break;
+		case DEG_135_RIGHT :
+			move_deg_135_right ();
+			break;
+		case DEG_180 :
+			move_deg_180 ();
+			break;
+		case DEG_45_LEFT :
+			move_deg_45_left ();
+			break;
+		case DEG_90_LEFT :
+			move_deg_90_left ();
+			break;
+		case DEG_135_LEFT :
+			move_deg_135_left ();
+			break;
+		case DONT_MOVE :
+			break;
+	}
 }
 
 /*
@@ -105,21 +317,37 @@ float determin_argument (float* data_mag, float* data_dft)
 
 void determin_sound_origin (void)
 {
-	float time_shift_FB = determin_argument (micFront_output, micFront_cmplx_input) -
-					      determin_argument (micBack_output, micBack_cmplx_input);
+	float time_shift_FB = determin_argument (micFront_cmplx_input) -
+					      determin_argument (micBack_cmplx_input);
 
-	time_shift_FB = (float)(time_shift_FB/((2*M_PI)/FFT_SIZE));
+	float time_shift_LR = determin_argument (micLeft_cmplx_input) -
+						  determin_argument (micRight_cmplx_input);
 
-	float time_shift_LR = determin_argument (micLeft_output, micLeft_cmplx_input) -
-						  determin_argument (micRight_output, micRight_cmplx_input);
+	float x_FB = (float)time_shift_FB * SOUND_SPEED * (FFT_SIZE/(20*M_PI*max_norm_index));
+	float x_LR = (float)time_shift_LR * SOUND_SPEED * (FFT_SIZE/(20*M_PI*max_norm_index));
 
-	time_shift_LR = (float)(time_shift_LR/((2*M_PI)/FFT_SIZE));
-
-	float cos_omega_FB = (float)((SOUND_SPEED*time_shift_FB*100)/EPUCK_DIAMETER);
-	float cos_omega_LR = (float)((SOUND_SPEED*time_shift_LR*100)/EPUCK_DIAMETER);
-
-	chprintf((BaseSequentialStream *)&SD3, "time shift FB = %d%\r\n\n", time_shift_FB);
-	chprintf((BaseSequentialStream *)&SD3, "time shift LR = %d%\r\n\n", time_shift_LR);
+	if (counter_x < SAMPLE_SIZE)
+	{
+		if ((abs(x_FB) < EPUCK_DIAMETER) &&
+			(abs(x_LR) < EPUCK_DIAMETER))
+		{
+			 tab_x_FB[counter_x] = x_FB;
+			 tab_x_LR[counter_x] = x_LR;
+			 ++counter_x;
+		}
+	} else {
+		x_FB_avg = 0;
+		x_LR_avg = 0;
+		for (int8_t i = 0; i < SAMPLE_SIZE; ++i)
+		{
+			x_FB_avg += tab_x_FB[i];
+			x_LR_avg += tab_x_LR[i];
+		}
+		x_FB_avg = (float)(x_FB_avg/SAMPLE_SIZE);
+		x_LR_avg = (float)(x_LR_avg/SAMPLE_SIZE);
+		move_to_sound ();
+		counter_x = 0;
+	}
 }
 
 /*
@@ -144,6 +372,7 @@ void  freq1150_handler (void)
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	quarter_turns (TWO_TURNS, LEFT_TURN);
 	quarter_turns (TWO_TURNS, RIGHT_TURN);
+	go ();
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 }
 
@@ -170,31 +399,6 @@ void freq1400_handler (void)
 }
 
 /*
- * Function that handles what the robot should do when a sound around 1800Hz
- * is perceived :
- * determines sound origin and goes towards it
- * NOT IMPLEMENTED YET
- */
-/*
-void freq1800_handler (void)
-{
-	chprintf((BaseSequentialStream *)&SD3, "In freq1800 %d%\r\n\n");
-	if (get_moving ())
-	{
-		palTogglePad(GPIOB, GPIOB_LED_BODY);
-		stop ();
-		set_moving (STOP);
-	} else
-	{
-		palTogglePad(GPIOB, GPIOB_LED_BODY);
-		go ();
-		set_moving (GO);
-	}
-	chThdSleepMilliseconds(1000);
-}
-*/
-
-/*
 *	Simple function used to detect the highest value in a buffer
 *	and to execute a motor command depending on it
 */
@@ -202,7 +406,6 @@ void freq1800_handler (void)
 void sound_remote(float* data)
 {
 	float max_norm = MIN_VALUE_THRESHOLD;
-	int16_t max_norm_index = -1; 
 
 	//search for the highest peak
 	for(uint16_t i = MIN_FREQ ; i <= MAX_FREQ ; i++)
@@ -215,7 +418,7 @@ void sound_remote(float* data)
 
 	if (max_norm_index >= FREQ_RIGHT_L && max_norm_index <= FREQ_RIGHT_H)
 	{
-		determin_sound_origin ();
+		//determin_sound_origin ();
 	}
 
 	if (max_norm_index >= FREQ_900_L && max_norm_index <= FREQ_900_H)
@@ -232,12 +435,6 @@ void sound_remote(float* data)
 	{
 		freq1400_handler ();
 	}
-	/*
-	if (max_norm_index >= FREQ_1800_L && max_norm_index <= FREQ_1800_H)
-	{
-		freq1800_handler ();
-	}
-	*/
 }
 
 /*
@@ -316,56 +513,4 @@ void processAudioData(int16_t *data, uint16_t num_samples)
 void wait_send_to_computer(void){
 	chBSemWait(&sendToComputer_sem);
 }
-
-float* get_audio_buffer_ptr(BUFFER_NAME_t name){
-	if(name == LEFT_CMPLX_INPUT){
-		return micLeft_cmplx_input;
-	}
-	else if (name == RIGHT_CMPLX_INPUT){
-		return micRight_cmplx_input;
-	}
-	else if (name == FRONT_CMPLX_INPUT){
-		return micFront_cmplx_input;
-	}
-	else if (name == BACK_CMPLX_INPUT){
-		return micBack_cmplx_input;
-	}
-	else if (name == LEFT_OUTPUT){
-		return micLeft_output;
-	}
-	else if (name == RIGHT_OUTPUT){
-		return micRight_output;
-	}
-	else if (name == FRONT_OUTPUT){
-		return micFront_output;
-	}
-	else if (name == BACK_OUTPUT){
-		return micBack_output;
-	}
-	else{
-		return NULL;
-	}
-}
-
-static THD_WORKING_AREA(waThdFrontLed, 128);
-static THD_FUNCTION(ThdFrontLed, arg) {
-
-    chRegSetThreadName(__FUNCTION__);
-    (void)arg;
-
-    systime_t time;
-
-    while(1){
-        time = chVTGetSystemTime();
-        palTogglePad(GPIOD, GPIOD_LED_FRONT);
-        chThdSleepUntilWindowed(time, time + MS2ST(1000));
-    }
-}
-
-void front_led_start (void)
-{
-	 chThdCreateStatic(waThdFrontLed, sizeof(waThdFrontLed), NORMALPRIO, ThdFrontLed, NULL);
-}
-
-
 

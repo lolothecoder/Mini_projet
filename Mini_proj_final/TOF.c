@@ -79,6 +79,7 @@ bool multi_dist(uint8_t samples, uint8_t distance){
 	}
 	return false;
 }
+
 uint16_t distance_till_safe(void){
 	uint8_t distance = 0;
 	uint8_t counter = 0;
