@@ -18,17 +18,33 @@
 #define DIST_SIZE				2
 #define CALC_ERROR				1
 
+static bool broken_loop = false;
+static int dist_travelled[2];
+
 static THD_WORKING_AREA(waTOF, 1024);
 static THD_FUNCTION(TOF, arg) {
     chRegSetThreadName(__FUNCTION__);
     (void)arg;
     while(1){
     	if(find_dist(OBSTACLE_DISTANCE)){
+    		chprintf((BaseSequentialStream *)&SD3, "SPOTTED OBSTACLE\r\n\n");
     		int motor_pos = right_motor_get_pos();
+    		int motor_pos_cm = steps_to_dist(motor_pos);
+    		dist_travelled[0] = motor_pos_cm;
+    		dist_travelled[1] = 0;
     		int right_mot_new_pos = dodge_obstacle();
     		quarter_turns(SINGLE_TURN, LEFT_TURN);
-    		right_motor_set_pos(motor_pos+dist_to_steps(right_mot_new_pos));
+    		if(broken_loop){
+    			right_motor_set_pos(dist_to_steps(right_mot_new_pos));
+    		}
+    		else{
+    			right_motor_set_pos(motor_pos+dist_to_steps(right_mot_new_pos));
+    		}
     		set_speed(MOTOR_SPEED);
+    		dist_travelled[0] = 0;
+    		dist_travelled[1] = 0;
+    		broken_loop = false;
+    		chprintf((BaseSequentialStream *)&SD3, "CLEARED OBSTACLE\r\n\n");
     	}
     	chThdSleepMilliseconds(100);
     }
@@ -54,20 +70,29 @@ bool multi_dist(uint8_t samples, uint8_t distance){
 	return false;
 }
 
-int distance_till_safe(void){
+int distance_till_safe(int dist_travelled){
 	int distance = 0;
 	int counter = 0;
-	while(counter < NUM_OF_1_ON_16_TURNS){
-		if (find_dist(OBSTACLE_DISTANCE)){
-			chprintf((BaseSequentialStream *)&SD3, "DONE = %d%\r\n\n", stop);
+	while(counter < NUM_OF_1_ON_16_TURNS && !broken_loop){
+		if (find_dist(OBSTACLE_DISTANCE)){ //can play with the number here
+			chprintf((BaseSequentialStream *)&SD3, "L SHAPE\r\n\n");
 			distance += dodge_obstacle();
 			quarter_turns(SINGLE_TURN, LEFT_TURN);
 			return distance;
 		}
 		else{
-			straight_line(ADVANCE_DIST, STRAIGHT);
-			distance += ADVANCE_DIST;
-			counter = search();
+			if(verify_dist(distance, ADVANCE_DIST, dist_travelled)){
+				straight_line(ADVANCE_DIST, STRAIGHT);
+				distance += ADVANCE_DIST;
+				counter = search();
+			}
+			else{
+				broken_loop = true;
+				int dist_left = LOOP_DISTANCE - dist_travelled - distance;
+				straight_line(dist_left,STRAIGHT);
+				quarter_turns(SINGLE_TURN, LEFT_TURN);
+				//infinite_stop();
+			}
 		}
 	}
 	return distance;
@@ -108,16 +133,34 @@ int dodge_obstacle(void){
 	int distances[DIST_SIZE] = {0};
 	quarter_turns(SINGLE_TURN,LEFT_TURN);
 	//chprintf((BaseSequentialStream *)&SD3, "INIT = %d%\r\n\n", motor_pos);
-	distances[0] = distance_till_safe();
+	distances[0] = distance_till_safe(dist_travelled[1]);
 	quarter_turns(SINGLE_TURN, RIGHT_TURN);
-	straight_line(ADVANCE_DIST_END, STRAIGHT);
-	distances[1] += ADVANCE_DIST_END;
-	if(!object_removed(distances)){
-		distances[1] += distance_till_safe();
-		quarter_turns(SINGLE_TURN, RIGHT_TURN);
+	if(verify_dist(0,ADVANCE_DIST_END,dist_travelled[0])){
+		straight_line(ADVANCE_DIST_END, STRAIGHT);
+		distances[1] += ADVANCE_DIST_END;
+		if(!object_removed(distances)){
+			distances[1] += distance_till_safe(dist_travelled[0] + ADVANCE_DIST_END);
+			quarter_turns(SINGLE_TURN, RIGHT_TURN);
+		}
 	}
+	else{
+		broken_loop = true;
+		int dist_left = LOOP_DISTANCE - dist_travelled[0];
+		straight_line(dist_left,STRAIGHT);
+	}
+
 	//chprintf((BaseSequentialStream *)&SD3, "DIST = %d%\r\n\n", distances[0]);
-	if(distances[0]!= 0) straight_line(distances[0], STRAIGHT);
-	//chprintf((BaseSequentialStream *)&SD3, "END = %d%\r\n\n", motor_pos+dist_to_steps(distances[1]));
-	return distances[1];
+	if(distances[0]!= 0 && !broken_loop) straight_line(distances[0], STRAIGHT);
+	if(broken_loop){
+		return distances[0];
+	}
+	else{
+		return distances[1];
+	}
+}
+
+bool verify_dist(int distance, int added_dist, int dist_travelled){
+	chprintf((BaseSequentialStream *)&SD3, "VERIFY = %d%\r\n\n", dist_travelled +distance + added_dist);
+	if(dist_travelled +distance + added_dist < LOOP_DISTANCE+1) return true;
+	return false;
 }

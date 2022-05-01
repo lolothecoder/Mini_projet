@@ -50,5 +50,6 @@ git commit - m "changes done"
 
 if the change is significant:
 	git checkout main
+	git pull
 	git merge feature
 git push 

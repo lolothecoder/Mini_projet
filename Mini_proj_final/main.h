@@ -9,6 +9,8 @@ extern "C" {
 #include "msgbus/messagebus.h"
 #include "parameter/parameter.h"
 
+#define LOOP_DISTANCE	40
+
 /*
  * To be able to retrieve the value of moving in other modules
  */
