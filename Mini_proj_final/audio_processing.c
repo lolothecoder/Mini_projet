@@ -428,12 +428,12 @@ void sound_remote(float* data)
 
 	if (max_norm_index >= FREQ_900_L && max_norm_index <= FREQ_900_H)
 	{
-		freq900_handler ();
+		//freq900_handler ();
 	}
 
 	if (max_norm_index >= FREQ_1150_L && max_norm_index <= FREQ_1150_H)
 	{
-		freq1150_handler ();
+		//freq1150_handler ();
 	}
 
 	if (max_norm_index >= FREQ_1400_L && max_norm_index <= FREQ_1400_H)
@@ -472,6 +472,8 @@ void compute_fft_and_mag (void)
 */
 void processAudioData(int16_t *data, uint16_t num_samples)
 {
+	chThdSetPriority(NORMALPRIO+2);
+	//int motor_pos = right_motor_get_pos();
 	static uint16_t nb_samples = 0;
 	static uint8_t mustSend = 0;
 
@@ -513,6 +515,7 @@ void processAudioData(int16_t *data, uint16_t num_samples)
 
 		sound_remote(micLeft_output);
 	}
+	//right_motor_set_pos(motor_pos);
 }
 
 void wait_send_to_computer(void){
