@@ -22,9 +22,6 @@
 
 //static int status = 0;
 
-//Static variable to know if the robot is moving or not
-static int8_t moving = 1;
-
 static void serial_start(void)
 {
 	static SerialConfig ser_cfg = {
@@ -45,33 +42,22 @@ int main(void)
     halInit();
     chSysInit();
     mpu_init();
-    //palTogglePad(GPIOD, GPIOD_LED_FRONT);
+    palTogglePad(GPIOD, GPIOD_LED_FRONT);
 
     VL53L0X_start();
     serial_start();
     usb_start();
     motors_init();
     TOF_start();
-    //mic_start(&processAudioData);
+    mic_start(&processAudioData);
 
     while (1)
     {
-    	if (moving)
+    	if (get_moving ())
     	{
     		straight_then_turn(LOOP_DISTANCE);
-    		//get_closer(60);
     	}
     }
-}
-
-int8_t get_moving (void)
-{
-	return moving;
-}
-
-void set_moving (int8_t new_moving)
-{
-	moving = new_moving;
 }
 
 #define STACK_CHK_GUARD 0xe2dee396

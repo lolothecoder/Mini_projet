@@ -355,6 +355,7 @@ static inline void chSysLock(void)  {
  *
  * @special
  */
+
 static inline void chSysUnlock(void) {
 
   _dbg_check_unlock();
