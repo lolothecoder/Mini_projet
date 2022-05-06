@@ -42,7 +42,7 @@ int main(void)
     halInit();
     chSysInit();
     mpu_init();
-    palTogglePad(GPIOD, GPIOD_LED_FRONT);
+    //palTogglePad(GPIOD, GPIOD_LED_FRONT);
 
     VL53L0X_start();
     serial_start();

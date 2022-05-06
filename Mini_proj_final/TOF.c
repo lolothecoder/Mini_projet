@@ -21,6 +21,7 @@
 
 static bool broken_loop = false;
 static int dist_travelled[2];
+static bool Lshape = false;
 
 static THD_WORKING_AREA(waTOF, 1024);
 static THD_FUNCTION(TOF, arg) {
@@ -42,7 +43,7 @@ static THD_FUNCTION(TOF, arg) {
 			int right_mot_new_pos = dodge_obstacle();
 			quarter_turns(SINGLE_TURN, LEFT_TURN);
 
-			if(broken_loop)
+			if(broken_loop && Lshape)
 			{
 				right_motor_set_pos(dist_to_steps(right_mot_new_pos));
 			}
@@ -56,6 +57,7 @@ static THD_FUNCTION(TOF, arg) {
 			dist_travelled[1] = 0;
 
 			broken_loop = false;
+			Lshape = false;
 			chprintf((BaseSequentialStream *)&SD3, "CLEARED OBSTACLE\r\n\n");
 		}
 		chThdSleepMilliseconds(100);
@@ -92,11 +94,12 @@ int distance_till_safe(int dist_travelled)
 		if (find_dist(OBSTACLE_DISTANCE)) { //can play with the number here
 			chprintf((BaseSequentialStream *)&SD3, "L SHAPE\r\n\n");
 			distance += dodge_obstacle();
+			Lshape = true;
 			quarter_turns(SINGLE_TURN, LEFT_TURN);
 			return distance;
 		}
 		else{
-			if(verify_dist(distance, ADVANCE_DIST, dist_travelled)){
+			if(Lshape || verify_dist(distance, ADVANCE_DIST, dist_travelled)){
 				straight_line(ADVANCE_DIST, STRAIGHT);
 				distance += ADVANCE_DIST;
 				counter = search();
@@ -160,7 +163,7 @@ int dodge_obstacle(void)
 	distances[0] = distance_till_safe(dist_travelled[1]);
 	quarter_turns(SINGLE_TURN, RIGHT_TURN);
 
-	if(verify_dist(0,ADVANCE_DIST_END,dist_travelled[0]))
+	if(Lshape || verify_dist(0,ADVANCE_DIST_END,dist_travelled[0]))
 	{
 		straight_line(ADVANCE_DIST_END, STRAIGHT);
 		distances[1] += ADVANCE_DIST_END;
