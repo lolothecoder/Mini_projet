@@ -141,6 +141,20 @@ static int8_t moving = 1;
 static uint16_t nb_samples = 0;
 static uint8_t mustSend = 0;
 
+static thread_t *waitThd;
+static THD_WORKING_AREA(waWait, 128);
+static THD_FUNCTION(waWait, arg) {
+
+    chRegSetThreadName(__FUNCTION__);
+    (void)arg;
+
+    while(1){
+    	delay(10*HALF_SECOND);
+    	chThdTerminate(waitThd);
+    	chThdWait(waitThd);
+    	waitThd = NULL;
+    }
+}
 
 int8_t get_moving (void)
 {
@@ -499,10 +513,15 @@ void stop_or_go (void)
 //	chSysLock();
 //	chThdSuspendS(&mainThread);
 	//chSysUnlock();
+	int32_t right_motor_pos = right_motor_get_pos ();
+	int32_t left_motor_pos = left_motor_get_pos ();
 	stop();
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	delay(10*HALF_SECOND);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	set_moving(2);
+	right_motor_set_pos (right_motor_pos);
+	left_motor_set_pos (left_motor_pos);
 	//chSysUnlock();
 
 //	chThdResume(&tofThd, (msg_t)0x1337);
@@ -612,7 +631,7 @@ void fill_arrays (int16_t *data, uint16_t i)
 */
 void processAudioData(int16_t *data, uint16_t num_samples)
 {
-	chThdSetPriority(NORMALPRIO+2);
+	chThdSetPriority(NORMALPRIO+12);
 	//int motor_pos = right_motor_get_pos();
 
 	//loop to fill the buffers

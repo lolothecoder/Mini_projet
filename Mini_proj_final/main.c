@@ -50,14 +50,11 @@ int main(void)
     TOF_start();
     mic_start(&processAudioData);
 
+    chThdSetPriority(NORMALPRIO-1);
+
     while (1)
     {
-    	if (get_moving ())
-    	{
-    		//align();
-    		//infinite_stop();
-    		straight_then_turn(LOOP_DISTANCE);
-    	}
+    	straight_then_turn(LOOP_DISTANCE);
     }
 }
 

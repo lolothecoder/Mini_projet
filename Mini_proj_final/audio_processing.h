@@ -11,4 +11,6 @@ void set_moving (int8_t new_moving);
 //Microphone thread funtion
 void processAudioData(int16_t *data, uint16_t num_samples);
 
+void delay(unsigned int n);
+
 #endif /* AUDIO_PROCESSING_H */

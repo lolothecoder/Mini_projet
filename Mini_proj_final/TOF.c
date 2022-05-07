@@ -9,20 +9,37 @@
 #include <audio_processing.h>
 #include <stdlib.h>
 
-#define OBSTACLE_DISTANCE 		60
-#define ADVANCE_DIST			4
-#define ADVANCE_DIST_END		6
-#define ERROR					20
-#define NUM_SAMPLES				20
-#define NUM_OF_1_ON_16_TURNS	8
-#define SEARCH_SPEED			400
-#define DIST_SIZE				2
-#define CALC_ERROR				1
+#define OBSTACLE_DISTANCE 		60	//The distance at which the robot can detect an obstacle
+
+#define ADVANCE_DIST			4	//The distance the robot can advance while dodging before
+									//checking for the obstacle
+
+#define ADVANCE_DIST_END		6	//Distance the robot travels after dodging one side of the
+									//obstacle
+
+#define ERROR					20	//Margin of error of TOF while checking for an obstacle
+
+#define NUM_OF_1_ON_16_TURNS	8	//Numbers of 1/16 turns to do to check if the obstacle
+									// has been dodged
+
+#define SEARCH_SPEED			400	//Speed at which the robot turns to look for an obstacle
+
+#define DIST_SIZE				2 	//The amount of distances the robot has to remember
+
+#define CALC_ERROR				1 	//Needs to be added while computing a distance
+
+//Alignment stuff might remove later
 #define ALIGNMENT				10
 #define SAMPLES					100
 
+//Checks if the robot tries to go further than LOOP_DISTANCE
+//defined in main.h
 static bool broken_loop = false;
-static int dist_travelled[2];
+
+//Keeps tracks of the distance the robot travelled before dodging an obstacle
+static int dist_travelled[DIST_SIZE];
+
+//Verifies if the object to dodge is an L shape obstacle
 static bool Lshape = false;
 
 static THD_WORKING_AREA(waTOF, 1024);
@@ -32,21 +49,22 @@ static THD_FUNCTION(TOF, arg) {
 
     while(1)
 	{
-		if(find_dist(OBSTACLE_DISTANCE))
+		if(find_dist(OBSTACLE_DISTANCE)) //checks if there is an obstacle
 		{
 
 			chprintf((BaseSequentialStream *)&SD3, "SPOTTED OBSTACLE\r\n\n");
-			//align();
-			//infinite_stop();
+			//saves the motor postion at the beggining of the thread
 			int motor_pos = right_motor_get_pos();
 			int motor_pos_cm = steps_to_dist(motor_pos);
 
+			//saves the distances travelled in x and y
 			dist_travelled[0] = motor_pos_cm;
 			dist_travelled[1] = 0;
 
-			int right_mot_new_pos = dodge_obstacle();
-			quarter_turns(SINGLE_TURN, LEFT_TURN);
+			int right_mot_new_pos = dodge_obstacle();	//dodges obstacle
+			quarter_turns(SINGLE_TURN, LEFT_TURN);		//Turns left to continue the loop after the obstacle
 
+			//Restores motor position
 			if(broken_loop)
 			{
 				right_motor_set_pos(dist_to_steps(right_mot_new_pos));
@@ -55,11 +73,12 @@ static THD_FUNCTION(TOF, arg) {
 			{
 				right_motor_set_pos(motor_pos+dist_to_steps(right_mot_new_pos));
 			}
-			set_speed(MOTOR_SPEED);
 
+			//resets the distances travelled
 			dist_travelled[0] = 0;
 			dist_travelled[1] = 0;
 
+			//resets essential bools
 			broken_loop = false;
 			Lshape = false;
 			chprintf((BaseSequentialStream *)&SD3, "CLEARED OBSTACLE\r\n\n");
@@ -68,11 +87,12 @@ static THD_FUNCTION(TOF, arg) {
 	}
 }
 
-
+//Starts the thread that will deal with obstacles
 void TOF_start(void){
-	chThdCreateStatic(waTOF, sizeof(waTOF), NORMALPRIO+1, TOF, NULL);
+	chThdCreateStatic(waTOF, sizeof(waTOF), NORMALPRIO, TOF, NULL);
 }
 
+//Verifies if the obstacle is a certain distance from the robot
 bool find_dist(uint8_t distance){
 	if(VL53L0X_get_dist_mm() < distance){
 		return true;
@@ -81,6 +101,8 @@ bool find_dist(uint8_t distance){
 	}
 }
 
+//Function to attempt to reduce TOF error by taking multiple measurements
+//and taking the average.
 int multi_dist(void)
 {
 	int distance_fin = 0;
@@ -90,64 +112,88 @@ int multi_dist(void)
 	return distance_fin/SAMPLES;
 }
 
+//Checks how far the robot has to go to clear the obstacle
+//if the robot is able to do a full 180 without seeing an object
+//then he has cleared the obstacle
 int distance_till_safe(int dist_travelled)
 {
-	int distance = 0;
-	int counter = 0;
+	int distance = 0; //the distance the robot has to travel
+	int counter = 0; //the amount of turns done by the robot
 	while(counter < NUM_OF_1_ON_16_TURNS && !broken_loop)
 	{
-		if (find_dist(OBSTACLE_DISTANCE)) { //can play with the number here
+		if (find_dist(OBSTACLE_DISTANCE)) { //checks if the object is L shaped
 			chprintf((BaseSequentialStream *)&SD3, "L SHAPE\r\n\n");
-			distance += dodge_obstacle();
+			distance += dodge_obstacle(); //dodges L shape object
 			Lshape = true;
 			quarter_turns(SINGLE_TURN, LEFT_TURN);
 			return distance;
 		}
 		else{
+			//Verifies if we can advance without breaking LOOP_DISTANCE(main.h) or
+			//if L shape is activated it ignores that check
 			if(Lshape || verify_dist(distance, ADVANCE_DIST, dist_travelled)){
 				straight_line(ADVANCE_DIST, STRAIGHT);
 				distance += ADVANCE_DIST;
 				counter = search();
 			}
 			else{
+				//If we try to break the LOOP_DISTANCE(main.h) we go back in the loop
 				broken_loop = true;
 				int dist_left = LOOP_DISTANCE - dist_travelled - distance;
 				straight_line(dist_left,STRAIGHT);
 				quarter_turns(SINGLE_TURN, LEFT_TURN);
-				//infinite_stop();
 			}
 		}
 	}
 	return distance;
 }
 
+//Approaches the obstacle if we have gone too far from it
 int get_closer(int distance)
 {
 	init_pos_motor();
 	if(!find_dist(OBSTACLE_DISTANCE)){
-		set_speed(600);
-		while(!find_dist(OBSTACLE_DISTANCE) && abs(right_motor_get_pos()) < dist_to_steps(distance)){}
+		while(!find_dist(OBSTACLE_DISTANCE) && abs(right_motor_get_pos()) < dist_to_steps(distance)){
+			set_speed(600);
+		}
 	}
 	if(abs(right_motor_get_pos()) >= dist_to_steps(distance)) return dist_to_steps(distance);
 	return abs(right_motor_get_pos());
 }
 
+//Verifies if the obstacle is still on the right of the robot
 uint8_t search(void)
 {
 	uint8_t counter = 0;
+	bool status = true;
 	for(uint8_t i = 0; i < NUM_OF_1_ON_16_TURNS; i++){
-		counter++;
 		eight_times_two_turns(SINGLE_TURN,RIGHT_TURN, SEARCH_SPEED);
+		counter++;
 		if(find_dist(OBSTACLE_DISTANCE + ERROR)){
 			chprintf((BaseSequentialStream *)&SD3, "counter right = %d%\r\n\n", counter);
 			break;
 		}
+		if(get_moving()==2 && status){
+			eight_times_two_turns(counter,LEFT_TURN, SEARCH_SPEED);
+			stop();
+			delay(SystemCoreClock/32);
+			i = 0;
+			counter = 0;
+			status = false;
+			//set_moving(1);
+		}
 	}
 	eight_times_two_turns(counter,LEFT_TURN, SEARCH_SPEED);
 	chprintf((BaseSequentialStream *)&SD3, "counter left = %d%\r\n\n", counter);
+
+	if(get_moving() == 2){
+		chprintf((BaseSequentialStream *)&SD3, "FINAL COUNTER = %d%\r\n\n", counter);
+		infinite_stop();
+	}
 	return counter;
 }
 
+//Checks if the obstacle has been removed. If so we go back in the loop
 bool object_removed(int distances[2])
 {
 	if(search() == NUM_OF_1_ON_16_TURNS)
@@ -169,17 +215,18 @@ int dodge_obstacle(void)
 
 	//chprintf((BaseSequentialStream *)&SD3, "INIT = %d%\r\n\n", motor_pos);
 
-	distances[0] = distance_till_safe(dist_travelled[1]);
+	distances[0] = distance_till_safe(dist_travelled[1]); //Dodges first side of the obstacle
 	quarter_turns(SINGLE_TURN, RIGHT_TURN);
 
-	if(Lshape || verify_dist(0,ADVANCE_DIST_END,dist_travelled[0]))
+	if(Lshape || verify_dist(0,ADVANCE_DIST_END,dist_travelled[0])) //Verifies if we can advance safely without
+																	//breaking the loop or hitting a wall
 	{
 		straight_line(ADVANCE_DIST_END, STRAIGHT);
 		distances[1] += ADVANCE_DIST_END;
 
-		if(!object_removed(distances))
+		if(!object_removed(distances)) //checks that the object is still there
 		{
-			distances[1] += distance_till_safe(dist_travelled[0] + ADVANCE_DIST_END);
+			distances[1] += distance_till_safe(dist_travelled[0] + ADVANCE_DIST_END); //dodges second side
 			quarter_turns(SINGLE_TURN, RIGHT_TURN);
 		}
 	}
@@ -189,7 +236,7 @@ int dodge_obstacle(void)
 		straight_line(dist_left,STRAIGHT);
 	}
 
-	//chprintf((BaseSequentialStream *)&SD3, "DIST = %d%\r\n\n", distances[0]);
+	//restores distance travelled to dodge the first side
 	if(distances[0]!= 0 && !broken_loop) straight_line(distances[0], STRAIGHT);
 	if(broken_loop){
 		return distances[0];
@@ -199,15 +246,23 @@ int dodge_obstacle(void)
 	}
 }
 
+//checks if we are still in the loop
 bool verify_dist(int distance, int added_dist, int dist_travelled)
 {
 	//chprintf((BaseSequentialStream *)&SD3, "VERIFY = %d%\r\n\n", dist_travelled +distance + added_dist);
 
-	if(dist_travelled +distance + added_dist < LOOP_DISTANCE+1) return true;
+	if(dist_travelled +distance + added_dist < LOOP_DISTANCE+CALC_ERROR) return true;
 	return false;
 
 }
 
+
+
+
+
+
+
+// Testing if a 90 deg alignment of the robot to the obstacle can be added
 void align(void){
 	uint16_t last_distance = 0;
 	uint16_t last_distance_r = 10000;
@@ -237,15 +292,6 @@ void align(void){
 		}
 	}
 }
-
-//uint8_t multi_check(uint8_t num_of_checks){
-//	uint8_t counter= 0;
-//	distance =
-//	for(uint8_t i; i < num_of_checks; i++){
-//		if()
-//	}
-//	return;
-//}
 
 
 

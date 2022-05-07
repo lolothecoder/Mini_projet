@@ -34,10 +34,10 @@ void init_pos_motor(void)
 void straight_line(uint8_t distance, int dir)
 {
 	init_pos_motor();
-	left_motor_set_speed(dir * MOTOR_SPEED);
-	motors.left_speed = dir * MOTOR_SPEED;
-	right_motor_set_speed(dir * MOTOR_SPEED);
-	motors.right_speed = dir * MOTOR_SPEED;
+//	left_motor_set_speed(dir * MOTOR_SPEED);
+//	motors.left_speed = dir * MOTOR_SPEED;
+//	right_motor_set_speed(dir * MOTOR_SPEED);
+//	motors.right_speed = dir * MOTOR_SPEED;
 	while(abs(right_motor_get_pos()) < distance* NSTEP_ONE_TURN / WHEEL_PERIMETER){
 		left_motor_set_speed(dir * MOTOR_SPEED);
 		right_motor_set_speed(dir * MOTOR_SPEED);
@@ -51,10 +51,10 @@ void straight_line(uint8_t distance, int dir)
 void quarter_turns(uint8_t num_of_quarter_turns, int dir)
 {
 	init_pos_motor();
-	left_motor_set_speed(-dir * MOTOR_SPEED);
-	right_motor_set_speed(dir * MOTOR_SPEED);
-	motors.left_speed = -dir * MOTOR_SPEED;
-	motors.right_speed = dir * MOTOR_SPEED;
+//	left_motor_set_speed(-dir * MOTOR_SPEED);
+//	right_motor_set_speed(dir * MOTOR_SPEED);
+//	motors.left_speed = -dir * MOTOR_SPEED;
+//	motors.right_speed = dir * MOTOR_SPEED;
 	if (dir == 1){
 		while(right_motor_get_pos() < num_of_quarter_turns*PERIMETER_EPUCK/4* NSTEP_ONE_TURN / WHEEL_PERIMETER){
 			left_motor_set_speed(-dir * MOTOR_SPEED);
@@ -76,10 +76,10 @@ void quarter_turns(uint8_t num_of_quarter_turns, int dir)
 void eight_times_two_turns(uint8_t num_of_sixteen_turns, int dir, uint16_t speed)
 {
 	init_pos_motor();
-	left_motor_set_speed(-dir * speed);
-	right_motor_set_speed(dir * speed);
-	motors.left_speed = -dir * speed;
-	motors.right_speed = dir * speed;
+//	left_motor_set_speed(-dir * speed);
+//	right_motor_set_speed(dir * speed);
+//	motors.left_speed = -dir * speed;
+//	motors.right_speed = dir * speed;
 	if (dir == 1){
 		while(right_motor_get_pos() < num_of_sixteen_turns*PERIMETER_EPUCK/16* NSTEP_ONE_TURN / WHEEL_PERIMETER){
 			left_motor_set_speed(-dir * speed);
@@ -160,10 +160,10 @@ int16_t get_right_speed(void){
 void hundreed_turn(uint8_t num_of_hundreed_turns, int dir)
 {
 	init_pos_motor();
-	left_motor_set_speed(-dir * ALIGN_SPEED);
-	right_motor_set_speed(dir * ALIGN_SPEED);
-	motors.left_speed = -dir * ALIGN_SPEED;
-	motors.right_speed = dir * ALIGN_SPEED;
+//	left_motor_set_speed(-dir * ALIGN_SPEED);
+//	right_motor_set_speed(dir * ALIGN_SPEED);
+//	motors.left_speed = -dir * ALIGN_SPEED;
+//	motors.right_speed = dir * ALIGN_SPEED;
 	if (dir == 1){
 		while(right_motor_get_pos() < num_of_hundreed_turns*PERIMETER_EPUCK/300* NSTEP_ONE_TURN / WHEEL_PERIMETER){
 			left_motor_set_speed(-dir * ALIGN_SPEED);
