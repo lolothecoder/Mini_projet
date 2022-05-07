@@ -453,17 +453,20 @@ void freq350_handler (void)
 
 void  spin_right_and_left (void)
 {
+	stop();
 	int32_t right_motor_pos = right_motor_get_pos ();
 	int32_t left_motor_pos = left_motor_get_pos ();
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	moving = STOP;
+	//moving = STOP;
+	go();
 	quarter_turns (ONE_TURN, LEFT_TURN);
 	quarter_turns (ONE_TURN, RIGHT_TURN);
+	stop();
 	right_motor_set_pos (right_motor_pos);
 	left_motor_set_pos (left_motor_pos);
-	go ();
-	moving = GO;
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	go ();
+	//moving = GO;
 }
 
 /*
@@ -473,22 +476,35 @@ void  spin_right_and_left (void)
 
 void stop_or_go (void)
 {
-	//static systime_t start_time;
-	if (moving == GO)
-	{
-		//start_time = //prends temps
-		palTogglePad(GPIOB, GPIOB_LED_BODY);
-		stop ();
-		moving = STOP;
-	} else
-	{
-		//if(/*time*/ - start_time > THRESHHOLD){
-			palTogglePad(GPIOB, GPIOB_LED_BODY);
-			go ();
-			moving = GO;
-		//}
-	}
-	chThdSleepMilliseconds(1000);
+
+//	//static systime_t start_time;
+//	if (moving == GO)
+//	{
+//		//start_time = //prends temps
+//		palTogglePad(GPIOB, GPIOB_LED_BODY);
+//		stop ();
+//		moving = STOP;
+//	} else
+//	{
+//		//if(/*time*/ - start_time > THRESHHOLD){
+//			palTogglePad(GPIOB, GPIOB_LED_BODY);
+//			go ();
+//			moving = GO;
+//		//}
+//	}
+
+//	chSysLock();
+//	chThdSuspendS(&tofThd);
+//	chSysUnlock();
+//	chSysLock();
+//	chThdSuspendS(&mainThread);
+//	chSysUnlock();
+	stop();
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	delay(10*HALF_SECOND);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+
+//	chThdResume(&tofThd, (msg_t)0x1337);
 }
 
 /*
@@ -517,21 +533,25 @@ void sound_remote(float* data)
 
 	if (max_norm_index >= FREQ_350_L && max_norm_index <= FREQ_350_H)
 	{
+		chprintf((BaseSequentialStream *)&SD3, "350\r\n\n");
 		stop_or_go ();
+		chThdSleepMilliseconds(1000);
 	}
 
-	if (max_norm_index >= FREQ_406_L && max_norm_index <= FREQ_406_H)
+	else if (max_norm_index >= FREQ_406_L && max_norm_index <= FREQ_406_H)
 	{
 
 	}
 
-	if (max_norm_index >= FREQ_1150_L && max_norm_index <= FREQ_1150_H)
+	else if (max_norm_index >= FREQ_1150_L && max_norm_index <= FREQ_1150_H)
 	{
+		chprintf((BaseSequentialStream *)&SD3, "1150\r\n\n");
 		spin_right_and_left ();
 	}
 
-	if (max_norm_index >= FREQ_1400_L && max_norm_index <= FREQ_1400_H)
+	else if (max_norm_index >= FREQ_1400_L && max_norm_index <= FREQ_1400_H)
 	{
+		chprintf((BaseSequentialStream *)&SD3, "1400\r\n\n");
 		determine_sound_origin ();
 	}
 }

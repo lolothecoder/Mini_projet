@@ -44,4 +44,8 @@ void infinite_stop(void);
 
 int conditional_advance(uint8_t distance, uint8_t dir,  bool continue_advance);
 
+int16_t get_left_speed(void);
+
+int16_t get_right_speed(void);
+
 #endif /* MOTORS_LIB_H */

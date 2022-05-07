@@ -8,6 +8,8 @@
 #ifndef TOF_H_
 #define TOF_H_
 
+static thread_t *tofThd;
+
 void TOF_start(void);
 
 void reset_distances(void);

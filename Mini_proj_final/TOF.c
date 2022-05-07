@@ -43,7 +43,7 @@ static THD_FUNCTION(TOF, arg) {
 			int right_mot_new_pos = dodge_obstacle();
 			quarter_turns(SINGLE_TURN, LEFT_TURN);
 
-			if(broken_loop && Lshape)
+			if(broken_loop)
 			{
 				right_motor_set_pos(dist_to_steps(right_mot_new_pos));
 			}
@@ -66,7 +66,7 @@ static THD_FUNCTION(TOF, arg) {
 
 
 void TOF_start(void){
-	chThdCreateStatic(waTOF, sizeof(waTOF), NORMALPRIO+1, TOF, NULL);
+	tofThd = chThdCreateStatic(waTOF, sizeof(waTOF), NORMALPRIO+1, TOF, NULL);
 }
 
 bool find_dist(uint8_t distance){
@@ -133,9 +133,13 @@ uint8_t search(void)
 	for(uint8_t i = 0; i < NUM_OF_1_ON_16_TURNS; i++){
 		counter++;
 		eight_times_two_turns(SINGLE_TURN,RIGHT_TURN, SEARCH_SPEED);
-		if(multi_dist(NUM_SAMPLES, OBSTACLE_DISTANCE + ERROR)) break;
+		if(multi_dist(NUM_SAMPLES, OBSTACLE_DISTANCE + ERROR)){
+			chprintf((BaseSequentialStream *)&SD3, "counter right = %d%\r\n\n", counter);
+			break;
+		}
 	}
 	eight_times_two_turns(counter,LEFT_TURN, SEARCH_SPEED);
+	chprintf((BaseSequentialStream *)&SD3, "counter left = %d%\r\n\n", counter);
 	return counter;
 }
 
@@ -192,7 +196,7 @@ int dodge_obstacle(void)
 
 bool verify_dist(int distance, int added_dist, int dist_travelled)
 {
-	chprintf((BaseSequentialStream *)&SD3, "VERIFY = %d%\r\n\n", dist_travelled +distance + added_dist);
+	//chprintf((BaseSequentialStream *)&SD3, "VERIFY = %d%\r\n\n", dist_travelled +distance + added_dist);
 
 	if(dist_travelled +distance + added_dist < LOOP_DISTANCE+1) return true;
 	return false;

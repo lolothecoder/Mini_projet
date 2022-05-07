@@ -21,7 +21,6 @@
 #include <TOF.h>
 
 //static int status = 0;
-
 static void serial_start(void)
 {
 	static SerialConfig ser_cfg = {
@@ -51,6 +50,7 @@ int main(void)
     TOF_start();
     mic_start(&processAudioData);
 
+    mainThread = chThdGetSelfX();
     while (1)
     {
     	if (get_moving ())

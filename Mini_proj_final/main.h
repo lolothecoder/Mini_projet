@@ -10,6 +10,7 @@ extern "C" {
 #include "parameter/parameter.h"
 
 #define LOOP_DISTANCE	40
+static thread_t *mainThread;
 
 /** Robot wide IPC bus. */
 extern messagebus_t bus;
