@@ -16,6 +16,7 @@
 //TO ADJUST IF NECESSARY. NOT ALL THE E-PUCK2 HAVE EXACTLY THE SAME WHEEL DISTANCE
 #define WHEEL_DISTANCE      5.35f    //cm
 #define PERIMETER_EPUCK     (PI * WHEEL_DISTANCE)
+#define ALIGN_SPEED			200
 
 struct motor_speed {
 	int16_t left_speed;
@@ -156,4 +157,28 @@ int16_t get_right_speed(void){
 	return motors.right_speed;
 }
 
+void hundreed_turn(uint8_t num_of_hundreed_turns, int dir)
+{
+	init_pos_motor();
+	left_motor_set_speed(-dir * ALIGN_SPEED);
+	right_motor_set_speed(dir * ALIGN_SPEED);
+	motors.left_speed = -dir * ALIGN_SPEED;
+	motors.right_speed = dir * ALIGN_SPEED;
+	if (dir == 1){
+		while(right_motor_get_pos() < num_of_hundreed_turns*PERIMETER_EPUCK/300* NSTEP_ONE_TURN / WHEEL_PERIMETER){
+			left_motor_set_speed(-dir * ALIGN_SPEED);
+			right_motor_set_speed(dir * ALIGN_SPEED);
+		}
+	}else
+	{
+		while(left_motor_get_pos() < num_of_hundreed_turns*PERIMETER_EPUCK/300* NSTEP_ONE_TURN / WHEEL_PERIMETER){
+			left_motor_set_speed(-dir * ALIGN_SPEED);
+			right_motor_set_speed(dir * ALIGN_SPEED);
+		}
+	}
+	left_motor_set_speed(0);
+	right_motor_set_speed(0);
+	motors.left_speed = 0;
+	motors.right_speed = 0;
+}
 

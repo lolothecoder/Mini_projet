@@ -48,4 +48,6 @@ int16_t get_left_speed(void);
 
 int16_t get_right_speed(void);
 
+void hundreed_turn(uint8_t num_of_hundreed_turns, int dir);
+
 #endif /* MOTORS_LIB_H */

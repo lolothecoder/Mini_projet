@@ -8,8 +8,6 @@
 #ifndef TOF_H_
 #define TOF_H_
 
-static thread_t *tofThd;
-
 void TOF_start(void);
 
 void reset_distances(void);
@@ -18,7 +16,7 @@ bool find_dist(uint8_t distance);
 
 int distance_till_safe(int dist_travelled);
 
-bool multi_dist(uint8_t samples, uint8_t distance);
+int multi_dist(void);
 
 int get_closer(int distance);
 
@@ -29,6 +27,8 @@ bool object_removed(int distances[2]);
 int dodge_obstacle(void);
 
 bool verify_dist(int distance, int added_dist, int dist_travelled);
+
+void align(void);
 
 #endif /* TOF_H_ */
 

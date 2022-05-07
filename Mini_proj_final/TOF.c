@@ -18,6 +18,8 @@
 #define SEARCH_SPEED			400
 #define DIST_SIZE				2
 #define CALC_ERROR				1
+#define ALIGNMENT				10
+#define SAMPLES					100
 
 static bool broken_loop = false;
 static int dist_travelled[2];
@@ -32,8 +34,10 @@ static THD_FUNCTION(TOF, arg) {
 	{
 		if(find_dist(OBSTACLE_DISTANCE))
 		{
-			chprintf((BaseSequentialStream *)&SD3, "SPOTTED OBSTACLE\r\n\n");
 
+			chprintf((BaseSequentialStream *)&SD3, "SPOTTED OBSTACLE\r\n\n");
+			//align();
+			//infinite_stop();
 			int motor_pos = right_motor_get_pos();
 			int motor_pos_cm = steps_to_dist(motor_pos);
 
@@ -66,7 +70,7 @@ static THD_FUNCTION(TOF, arg) {
 
 
 void TOF_start(void){
-	tofThd = chThdCreateStatic(waTOF, sizeof(waTOF), NORMALPRIO+1, TOF, NULL);
+	chThdCreateStatic(waTOF, sizeof(waTOF), NORMALPRIO+1, TOF, NULL);
 }
 
 bool find_dist(uint8_t distance){
@@ -77,12 +81,13 @@ bool find_dist(uint8_t distance){
 	}
 }
 
-bool multi_dist(uint8_t samples, uint8_t distance)
+int multi_dist(void)
 {
-	for(uint8_t i = 0; i < samples; i++){
-		if(find_dist(distance)) return true;
+	int distance_fin = 0;
+	for(uint8_t i = 0; i < SAMPLES; i++){
+		distance_fin += VL53L0X_get_dist_mm();
 	}
-	return false;
+	return distance_fin/SAMPLES;
 }
 
 int distance_till_safe(int dist_travelled)
@@ -133,7 +138,7 @@ uint8_t search(void)
 	for(uint8_t i = 0; i < NUM_OF_1_ON_16_TURNS; i++){
 		counter++;
 		eight_times_two_turns(SINGLE_TURN,RIGHT_TURN, SEARCH_SPEED);
-		if(multi_dist(NUM_SAMPLES, OBSTACLE_DISTANCE + ERROR)){
+		if(find_dist(OBSTACLE_DISTANCE + ERROR)){
 			chprintf((BaseSequentialStream *)&SD3, "counter right = %d%\r\n\n", counter);
 			break;
 		}
@@ -203,8 +208,44 @@ bool verify_dist(int distance, int added_dist, int dist_travelled)
 
 }
 
+void align(void){
+	uint16_t last_distance = 0;
+	uint16_t last_distance_r = 10000;
+	uint16_t last_distance_l = 10000;
+	int8_t direction = 0;
+
+	hundreed_turn(10, RIGHT_TURN);
+	last_distance_r = multi_dist();
+	hundreed_turn(20, LEFT_TURN);
+	last_distance_l = multi_dist();
+	hundreed_turn(10, RIGHT_TURN);
+
+	if (last_distance_r < last_distance_l) direction = RIGHT_TURN;
+	else direction = LEFT_TURN;
 
 
+	while(1){
+		last_distance = multi_dist();
+		hundreed_turn(1, direction);
+		if(multi_dist() < OBSTACLE_DISTANCE + 50 && multi_dist() > last_distance ){
+			hundreed_turn(1, -direction);
+			hundreed_turn(10, direction);
+			if(multi_dist() < OBSTACLE_DISTANCE + 50 && multi_dist() > last_distance ){
+				hundreed_turn(10, -direction);
+				return;
+			}
+		}
+	}
+}
+
+//uint8_t multi_check(uint8_t num_of_checks){
+//	uint8_t counter= 0;
+//	distance =
+//	for(uint8_t i; i < num_of_checks; i++){
+//		if()
+//	}
+//	return;
+//}
 
 
 

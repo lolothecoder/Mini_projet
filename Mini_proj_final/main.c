@@ -50,11 +50,12 @@ int main(void)
     TOF_start();
     mic_start(&processAudioData);
 
-    mainThread = chThdGetSelfX();
     while (1)
     {
     	if (get_moving ())
     	{
+    		//align();
+    		//infinite_stop();
     		straight_then_turn(LOOP_DISTANCE);
     	}
     }

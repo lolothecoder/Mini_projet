@@ -458,14 +458,14 @@ void  spin_right_and_left (void)
 	int32_t left_motor_pos = left_motor_get_pos ();
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	//moving = STOP;
-	go();
+	//go();
 	quarter_turns (ONE_TURN, LEFT_TURN);
 	quarter_turns (ONE_TURN, RIGHT_TURN);
 	stop();
 	right_motor_set_pos (right_motor_pos);
 	left_motor_set_pos (left_motor_pos);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	go ();
+	//go ();
 	//moving = GO;
 }
 
@@ -493,16 +493,17 @@ void stop_or_go (void)
 //		//}
 //	}
 
-//	chSysLock();
+	//chSysLock();
 //	chThdSuspendS(&tofThd);
 //	chSysUnlock();
 //	chSysLock();
 //	chThdSuspendS(&mainThread);
-//	chSysUnlock();
+	//chSysUnlock();
 	stop();
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	delay(10*HALF_SECOND);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	//chSysUnlock();
 
 //	chThdResume(&tofThd, (msg_t)0x1337);
 }
