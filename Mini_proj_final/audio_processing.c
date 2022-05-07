@@ -142,17 +142,29 @@ static uint16_t nb_samples = 0;
 static uint8_t mustSend = 0;
 
 static thread_t *waitThd;
-static THD_WORKING_AREA(waWait, 128);
-static THD_FUNCTION(waWait, arg) {
+static THD_WORKING_AREA(waWaitThd, 128);
+static THD_FUNCTION(WaitThd, arg) {
 
     chRegSetThreadName(__FUNCTION__);
     (void)arg;
 
     while(1){
-    	delay(10*HALF_SECOND);
-    	chThdTerminate(waitThd);
-    	chThdWait(waitThd);
+    	chSysLock();
+    	palTogglePad(GPIOB, GPIOB_LED_BODY);
+    	delay(SystemCoreClock);
+    	palTogglePad(GPIOB, GPIOB_LED_BODY);
+    	delay(HALF_SECOND);
+    	palTogglePad(GPIOB, GPIOB_LED_BODY);
+    	delay(HALF_SECOND);
+    	palTogglePad(GPIOB, GPIOB_LED_BODY);
+    	delay(HALF_SECOND);
+    	palTogglePad(GPIOB, GPIOB_LED_BODY);
+    	delay(HALF_SECOND);
+    	palTogglePad(GPIOB, GPIOB_LED_BODY);
+    	chSysUnlock();
+    	chThdExit(0);
     	waitThd = NULL;
+    	chThdYield();
     }
 }
 
@@ -513,15 +525,18 @@ void stop_or_go (void)
 //	chSysLock();
 //	chThdSuspendS(&mainThread);
 	//chSysUnlock();
-	int32_t right_motor_pos = right_motor_get_pos ();
-	int32_t left_motor_pos = left_motor_get_pos ();
+	//int32_t right_motor_pos = right_motor_get_pos ();
+	//int32_t left_motor_pos = left_motor_get_pos ();
 	stop();
-	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	delay(10*HALF_SECOND);
-	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	set_moving(2);
-	right_motor_set_pos (right_motor_pos);
-	left_motor_set_pos (left_motor_pos);
+	set_moving(0);
+	//chThdSetPriority(NORMALPRIO+51);
+	waitThd = chThdCreateStatic(waWaitThd, sizeof(waWaitThd), NORMALPRIO+50, WaitThd, NULL);
+
+	//palTogglePad(GPIOB, GPIOB_LED_BODY);
+	//delay(10*HALF_SECOND);
+	//palTogglePad(GPIOB, GPIOB_LED_BODY);
+	//right_motor_set_pos (right_motor_pos);
+	//left_motor_set_pos (left_motor_pos);
 	//chSysUnlock();
 
 //	chThdResume(&tofThd, (msg_t)0x1337);
@@ -555,12 +570,14 @@ void sound_remote(float* data)
 	{
 		chprintf((BaseSequentialStream *)&SD3, "350\r\n\n");
 		stop_or_go ();
-		chThdSleepMilliseconds(1000);
+		//chThdSleepMilliseconds(1000);
 	}
 
 	else if (max_norm_index >= FREQ_406_L && max_norm_index <= FREQ_406_H)
 	{
-
+		set_moving(1);
+		//chThdSetPriority(NORMALPRIO+12);
+		//spin_right_and_left ();
 	}
 
 	else if (max_norm_index >= FREQ_1150_L && max_norm_index <= FREQ_1150_H)
