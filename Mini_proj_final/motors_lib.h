@@ -1,11 +1,11 @@
 #ifndef MOTORS_LIB_H
 
 #define MOTORS_LIB_H
+
 #define LEFT_TURN			1
 #define RIGHT_TURN			-1
 #define STRAIGHT			1
 #define BACK				-1
-#define MOTOR_SPEED   		600 // []
 #define SINGLE_TURN			1
 
 #define MOTOR_SPEED   		600
@@ -49,5 +49,9 @@ int16_t get_left_speed(void);
 int16_t get_right_speed(void);
 
 void hundreed_turn(uint8_t num_of_hundreed_turns, int dir);
+
+int32_t get_current_speed (void);
+
+void selector_start(void);
 
 #endif /* MOTORS_LIB_H */

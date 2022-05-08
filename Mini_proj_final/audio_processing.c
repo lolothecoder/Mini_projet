@@ -243,13 +243,14 @@ SOUND_ORIENTATION_t determine_sound_state (void)
 
 /*
  * These functions are called within the switch of the function "move_to_sound"
- * and make the robot move towards the sound source
+ * and make the robot turn towards the sound source, blink BODY_LED multiple
+ * times to indicate the direction and finally spin back to its original
+ * orientation
  */
 
 void move_deg_0 (void)
 {
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	//straight_line (SOUND_DISTANCE, STRAIGHT);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	stop ();
 	blink_body ();
@@ -260,10 +261,12 @@ void move_deg_45_right (void)
 {
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	eight_times_two_turns (DEG_45_TURN, RIGHT_TURN, MOTOR_SPEED);
-	//straight_line (SOUND_DISTANCE, STRAIGHT);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	stop ();
 	blink_body ();
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	eight_times_two_turns (DEG_45_TURN, LEFT_TURN, MOTOR_SPEED);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	go ();
 }
 
@@ -271,10 +274,12 @@ void move_deg_90_right (void)
 {
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	quarter_turns (DEG_90_TURN, RIGHT_TURN);
-	//straight_line (SOUND_DISTANCE, STRAIGHT);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	stop ();
 	blink_body ();
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	quarter_turns (DEG_90_TURN, LEFT_TURN);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	go ();
 }
 
@@ -283,10 +288,13 @@ void move_deg_135_right (void)
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	quarter_turns (DEG_90_TURN, RIGHT_TURN);
 	eight_times_two_turns (DEG_45_TURN, RIGHT_TURN, MOTOR_SPEED);
-	//straight_line (SOUND_DISTANCE, STRAIGHT);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	stop ();
 	blink_body ();
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	eight_times_two_turns (DEG_45_TURN, LEFT_TURN, MOTOR_SPEED);
+	quarter_turns (DEG_90_TURN, LEFT_TURN);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	go ();
 }
 
@@ -294,10 +302,12 @@ void move_deg_180 (void)
 {
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	quarter_turns (DEG_180_TURN, RIGHT_TURN);
-	//straight_line (SOUND_DISTANCE, STRAIGHT);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	stop ();
 	blink_body ();
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	quarter_turns (DEG_180_TURN, RIGHT_TURN);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	go ();
 }
 
@@ -305,10 +315,12 @@ void move_deg_45_left (void)
 {
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	eight_times_two_turns (DEG_45_TURN, LEFT_TURN, MOTOR_SPEED);
-	//straight_line (SOUND_DISTANCE, STRAIGHT);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	stop ();
 	blink_body ();
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	eight_times_two_turns (DEG_45_TURN, RIGHT_TURN, MOTOR_SPEED);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	go ();
 }
 
@@ -316,10 +328,12 @@ void move_deg_90_left (void)
 {
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	quarter_turns (DEG_90_TURN, LEFT_TURN);
-	//straight_line (SOUND_DISTANCE, STRAIGHT);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	stop ();
 	blink_body ();
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	quarter_turns (DEG_90_TURN, RIGHT_TURN);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	go ();
 }
 
@@ -328,20 +342,27 @@ void move_deg_135_left (void)
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	quarter_turns (1, LEFT_TURN);
 	eight_times_two_turns (2, LEFT_TURN, MOTOR_SPEED);
-	//straight_line (SOUND_DISTANCE, STRAIGHT);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	stop ();
 	blink_body ();
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	quarter_turns (1, RIGHT_TURN);
+	eight_times_two_turns (2, RIGHT_TURN, MOTOR_SPEED);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	go ();
 }
 
 /*
- * Function that orients the robot to the direction that the
- * sound is coming from + move 10 cm towards it
+ * Function that selects one of the 8 previous "move" functions depending
+ * on where the sound is coming from
  */
 
 void move_to_sound (void)
 {
+	//Saves initial positions of the motor
+	int32_t right_motor_pos = right_motor_get_pos ();
+	int32_t left_motor_pos = left_motor_get_pos ();
+
 	switch (determine_sound_state ())
 	{
 		case DEG_0 :
@@ -371,6 +392,8 @@ void move_to_sound (void)
 		case DONT_MOVE :
 			break;
 	}
+	right_motor_set_pos (right_motor_pos);
+	left_motor_set_pos (left_motor_pos);
 }
 
 /*
@@ -451,61 +474,31 @@ void freq350_handler (void)
  * the other direction (called when one of the frequencies is perceived)
  */
 
-void  spin_right_and_left (void)
+void  spin_left_then_right (void)
 {
 	stop();
 	int32_t right_motor_pos = right_motor_get_pos ();
 	int32_t left_motor_pos = left_motor_get_pos ();
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	//moving = STOP;
-	//go();
 	quarter_turns (ONE_TURN, LEFT_TURN);
 	quarter_turns (ONE_TURN, RIGHT_TURN);
 	stop();
 	right_motor_set_pos (right_motor_pos);
 	left_motor_set_pos (left_motor_pos);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	//go ();
-	//moving = GO;
 }
 
 /*
- * Stops the robot if it's moving and starts it if it's not moving (called when one
- * of the frequencies is perceived)
+ * Stops the robot for a couple of seconds and makes it move again
  */
 
-void stop_or_go (void)
+void stop_and_go (void)
 {
-
-//	//static systime_t start_time;
-//	if (moving == GO)
-//	{
-//		//start_time = //prends temps
-//		palTogglePad(GPIOB, GPIOB_LED_BODY);
-//		stop ();
-//		moving = STOP;
-//	} else
-//	{
-//		//if(/*time*/ - start_time > THRESHHOLD){
-//			palTogglePad(GPIOB, GPIOB_LED_BODY);
-//			go ();
-//			moving = GO;
-//		//}
-//	}
-
-	//chSysLock();
-//	chThdSuspendS(&tofThd);
-//	chSysUnlock();
-//	chSysLock();
-//	chThdSuspendS(&mainThread);
-	//chSysUnlock();
 	stop();
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	delay(10*HALF_SECOND);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	//chSysUnlock();
-
-//	chThdResume(&tofThd, (msg_t)0x1337);
+	//This instruction should be removed before submission
 }
 
 /*
@@ -528,31 +521,27 @@ void sound_remote(float* data)
 	}
 
 	//350 OK
-	//406 OK
+	//406 OK, MOST PROBABLY WONT BE USED SO TO BE REMOVED
 	//1150 OK
 	//1400 OK
 
 	if (max_norm_index >= FREQ_350_L && max_norm_index <= FREQ_350_H)
 	{
-		chprintf((BaseSequentialStream *)&SD3, "350\r\n\n");
-		stop_or_go ();
-		chThdSleepMilliseconds(1000);
+		stop_and_go ();
 	}
 
 	else if (max_norm_index >= FREQ_406_L && max_norm_index <= FREQ_406_H)
 	{
-
+		spin_left_then_right ();
 	}
 
 	else if (max_norm_index >= FREQ_1150_L && max_norm_index <= FREQ_1150_H)
 	{
-		chprintf((BaseSequentialStream *)&SD3, "1150\r\n\n");
-		spin_right_and_left ();
+
 	}
 
 	else if (max_norm_index >= FREQ_1400_L && max_norm_index <= FREQ_1400_H)
 	{
-		chprintf((BaseSequentialStream *)&SD3, "1400\r\n\n");
 		determine_sound_origin ();
 	}
 }
