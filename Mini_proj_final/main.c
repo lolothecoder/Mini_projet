@@ -41,7 +41,6 @@ int main(void)
     halInit();
     chSysInit();
     mpu_init();
-    //palTogglePad(GPIOD, GPIOD_LED_FRONT);
 
     VL53L0X_start();
     serial_start();
@@ -49,6 +48,7 @@ int main(void)
     motors_init();
     TOF_start();
     mic_start(&processAudioData);
+    selector_start ();
 
     chThdSetPriority(NORMALPRIO-1);
 

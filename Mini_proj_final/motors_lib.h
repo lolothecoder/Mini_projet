@@ -1,11 +1,11 @@
 #ifndef MOTORS_LIB_H
 
 #define MOTORS_LIB_H
+
 #define LEFT_TURN			1
 #define RIGHT_TURN			-1
 #define STRAIGHT			1
 #define BACK				-1
-#define MOTOR_SPEED   		600 // []
 #define SINGLE_TURN			1
 
 #define MOTOR_SPEED   		600
@@ -50,5 +50,9 @@ void infinite_stop(void);
 int conditional_advance(uint8_t distance, uint8_t dir,  bool continue_advance);
 
 void hundreed_turn(uint8_t num_of_hundreed_turns, int dir);
+
+int32_t get_current_speed (void);
+
+void selector_start(void);
 
 #endif /* MOTORS_LIB_H */
