@@ -9,8 +9,8 @@
 #define SINGLE_TURN			1
 
 #define MOTOR_SPEED   		600
+
 // Initialize right motor position to 0
-//IMPORTANT TO CALL BEFORE THE WHILE LOOP
 void init_pos_motor(void);
 
 //Rolls in a straight line for length distance
@@ -34,19 +34,20 @@ void stop (void);
 //Sets the speed to MOTOR_SPEED
 void go (void);
 
+//Sets the speed to a given speed
 void set_speed(int speed);
 
+//Converts distance to steps
 int dist_to_steps(int distance);
 
+//Converts steps to distance
 int steps_to_dist(int steps);
 
 void infinite_stop(void);
 
+
+//Chelou functions that may get deleted but are cool for testing
 int conditional_advance(uint8_t distance, uint8_t dir,  bool continue_advance);
-
-int16_t get_left_speed(void);
-
-int16_t get_right_speed(void);
 
 void hundreed_turn(uint8_t num_of_hundreed_turns, int dir);
 

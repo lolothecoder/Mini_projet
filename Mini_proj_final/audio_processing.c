@@ -528,8 +528,6 @@ void stop_or_go (void)
 	//int32_t right_motor_pos = right_motor_get_pos ();
 	//int32_t left_motor_pos = left_motor_get_pos ();
 	stop();
-	set_moving(0);
-	//chThdSetPriority(NORMALPRIO+51);
 	waitThd = chThdCreateStatic(waWaitThd, sizeof(waWaitThd), NORMALPRIO+50, WaitThd, NULL);
 
 	//palTogglePad(GPIOB, GPIOB_LED_BODY);

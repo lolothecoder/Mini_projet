@@ -165,7 +165,6 @@ int get_closer(int distance)
 uint8_t search(void)
 {
 	uint8_t counter = 0;
-	bool status = true;
 	for(uint8_t i = 0; i < NUM_OF_1_ON_16_TURNS; i++){
 		eight_times_two_turns(SINGLE_TURN,RIGHT_TURN, SEARCH_SPEED);
 		counter++;
@@ -173,23 +172,9 @@ uint8_t search(void)
 			chprintf((BaseSequentialStream *)&SD3, "counter right = %d%\r\n\n", counter);
 			break;
 		}
-		if(get_moving()==2 && status){
-			eight_times_two_turns(counter,LEFT_TURN, SEARCH_SPEED);
-			stop();
-			delay(SystemCoreClock/32);
-			i = 0;
-			counter = 0;
-			status = false;
-			//set_moving(1);
-		}
 	}
 	eight_times_two_turns(counter,LEFT_TURN, SEARCH_SPEED);
 	chprintf((BaseSequentialStream *)&SD3, "counter left = %d%\r\n\n", counter);
-
-	if(get_moving() == 2){
-		chprintf((BaseSequentialStream *)&SD3, "FINAL COUNTER = %d%\r\n\n", counter);
-		infinite_stop();
-	}
 	return counter;
 }
 
