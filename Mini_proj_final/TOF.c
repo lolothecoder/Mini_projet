@@ -3,7 +3,7 @@
 #include "motors.h"
 #include <chprintf.h>
 #include <sensors/VL53L0X/VL53L0X.h>
-#include <main.h>
+//#include <main.h>
 #include <motors_lib.h>
 #include <TOF.h>
 #include <audio_processing.h>
@@ -141,7 +141,7 @@ int distance_till_safe(int dist_travelled)
 			else{
 				//If we try to break the LOOP_DISTANCE(main.h) we go back in the loop
 				broken_loop = true;
-				int dist_left = LOOP_DISTANCE - dist_travelled - distance;
+				int dist_left = get_loop_distance () - dist_travelled - distance;
 				straight_line(dist_left,STRAIGHT);
 				quarter_turns(SINGLE_TURN, LEFT_TURN);
 			}
@@ -218,7 +218,7 @@ int dodge_obstacle(void)
 	}
 	else{
 		broken_loop = true;
-		int dist_left = LOOP_DISTANCE - dist_travelled[0];
+		int dist_left = get_loop_distance () - dist_travelled[0];
 		straight_line(dist_left,STRAIGHT);
 	}
 
@@ -237,16 +237,10 @@ bool verify_dist(int distance, int added_dist, int dist_travelled)
 {
 	//chprintf((BaseSequentialStream *)&SD3, "VERIFY = %d%\r\n\n", dist_travelled +distance + added_dist);
 
-	if(dist_travelled +distance + added_dist < LOOP_DISTANCE+CALC_ERROR) return true;
+	if(dist_travelled +distance + added_dist < get_loop_distance ()+CALC_ERROR) return true;
 	return false;
 
 }
-
-
-
-
-
-
 
 // Testing if a 90 deg alignment of the robot to the obstacle can be added
 void align(void){

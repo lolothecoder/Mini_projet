@@ -2,7 +2,7 @@
 #include "hal.h"
 #include "motors.h"
 
-#include <TOF.h>
+//#include <TOF.h>
 #include <chprintf.h>
 
 #include <motors_lib.h>
@@ -175,6 +175,7 @@ void  select_speed (void)
 	float percentage = (((float)get_selector())/MAX_SELECTOR_VALUE);
 	chprintf((BaseSequentialStream *)&SD3, "percentage = %f%\r\n\n", percentage);
 	current_speed = (float)(percentage*MOTOR_SPEED_LIMIT);
+	current_speed = abs(current_speed);
 	chprintf((BaseSequentialStream *)&SD3, "speed = %f%\r\n\n", current_speed);
 }
 

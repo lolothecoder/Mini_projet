@@ -9,8 +9,6 @@ extern "C" {
 #include "msgbus/messagebus.h"
 #include "parameter/parameter.h"
 
-#define LOOP_DISTANCE	40
-
 /** Robot wide IPC bus. */
 extern messagebus_t bus;
 

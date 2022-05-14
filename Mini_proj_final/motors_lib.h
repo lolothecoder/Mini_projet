@@ -45,14 +45,13 @@ int steps_to_dist(int steps);
 
 void infinite_stop(void);
 
+int32_t get_current_speed (void);
+
+void selector_start(void);
 
 //Chelou functions that may get deleted but are cool for testing
 int conditional_advance(uint8_t distance, uint8_t dir,  bool continue_advance);
 
 void hundreed_turn(uint8_t num_of_hundreed_turns, int dir);
-
-int32_t get_current_speed (void);
-
-void selector_start(void);
 
 #endif /* MOTORS_LIB_H */

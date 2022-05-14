@@ -1,53 +1,27 @@
+/*
+ * ATTENTION
+ * The files audio_processing.c and audio_processing.h had been originally taken from "TP5_Noisy"
+ * and were used as a base for this module of the project. Some of the #define, static variables
+ * and the functions process_audio_data and sound_remote were take from that TP but have been modified
+ * and other elements have been removed due to them not being necessary for our project (get_buffer (),
+ * wait_send_to_computer (), typdef of different microphones...). Other elements were added to be able
+ * to complete our project.
+ */
+
 #include "ch.h"
 #include "hal.h"
 #include <main.h>
 #include <usbcfg.h>
-#include <chprintf.h>
-
+//#include <chprintf.h>
 #include <motors_lib.h>
-#include <TOF.h>
 #include "motors.h"
 #include <audio/microphone.h>
 #include <audio_processing.h>
-#include <communications.h>
+//#include <communications.h>
 #include <fft.h>
 #include <arm_math.h>
 
-
-/*
- * Enum used to identify the different orientations that the robot
- * is able to make depending on where the sound  coming from ; used
- * within the functions "determin_sound_state" and "move_to_sound"
- */
-typedef enum {
-	DEG_0 = 0,
-	DEG_45_RIGHT,
-	DEG_90_RIGHT,
-	DEG_135_RIGHT,
-	DEG_180,
-	DEG_45_LEFT,
-	DEG_90_LEFT,
-	DEG_135_LEFT,
-	DONT_MOVE //Extra case that shouldn't ever be triggered
-} SOUND_ORIENTATION_t;
-
-#define FFT_SIZE 	1024
-
-//semaphore
-static BSEMAPHORE_DECL(sendToComputer_sem, TRUE);
-
-//2 times FFT_SIZE because these arrays contain complex numbers (real + imaginary)
-static float micLeft_cmplx_input[2 * FFT_SIZE];
-static float micRight_cmplx_input[2 * FFT_SIZE];
-static float micFront_cmplx_input[2 * FFT_SIZE];
-static float micBack_cmplx_input[2 * FFT_SIZE];
-
-//Arrays containing the computed magnitude of the complex numbers
-static float micLeft_output[FFT_SIZE];
-static float micRight_output[FFT_SIZE];
-static float micFront_output[FFT_SIZE];
-static float micBack_output[FFT_SIZE];
-
+#define FFT_SIZE 			1024
 #define HALF_SECOND 		SystemCoreClock/32
 #define DEG_45_TURN			2
 #define DEG_90_TURN			1
@@ -55,21 +29,28 @@ static float micBack_output[FFT_SIZE];
 #define ONE_TURN			4
 #define GO					1
 #define STOP				0
-#define MIN_VALUE_THRESHOLD	10000 
 #define TWO_TURNS			8
 #define MIN_VALUE_THRESHOLD	10000
-#define EPUCK_DIAMETER		73 //value in mm
-#define SOUND_SPEED			343 //value in m/s
-#define SOUND_DISTANCE	10 //value in cm
+#define EPUCK_DIAMETER		73 	//[mm]
+#define SOUND_SPEED			343 //[m/s]
+#define MIN_LOOP_DISTANCE	10  //[cm]
+#define MAX_LOOP_DISTANCE	40 	//[cm]
+#define DISTANCE_INCREMENT	10  //[cm]
 
 #define SAMPLE_SIZE				5 //Amount of delta x values required to be collected
-								   //withinh the function "determine_sound_origin"
+								  //withinh the function "determine_sound_origin"
 
 #define MIN_DELTA_X_THRESHOLD	10 /*If the delta x value is smaller than this threshold
 								   * then the sound is considered to be perpendicular to
 								   * the microphone axis in question and thus shouldn't
 								   * be affect w
 								   */
+
+/*
+ * These are all of the values of the positions that correspond to a certain frequency
+ * when we look in the DFT norms table of a certain microphone in order to execute a
+ * specific task
+ */
 
 //we don't analyze before this index to not use resources for nothing
 #define MIN_FREQ		10
@@ -78,6 +59,8 @@ static float micBack_output[FFT_SIZE];
 #define FREQ_296		19	//296Hz
 #define FREQ_350		23	//350Hz
 #define FREQ_406		26	//406Hz
+#define FREQ_500		33	//500Hz
+#define FREQ_700		45  //700Hz
 #define FREQ_900		58  //900Hz
 #define FREQ_1150		74	//1150Hz
 #define FREQ_1400		91  //1400Hz
@@ -94,6 +77,10 @@ static float micBack_output[FFT_SIZE];
 #define FREQ_350_H			(FREQ_350+1)
 #define FREQ_406_L			(FREQ_406-1)
 #define FREQ_406_H			(FREQ_406+1)
+#define FREQ_500_H			(FREQ_500+1)
+#define FREQ_500_L			(FREQ_500-1)
+#define FREQ_700_L			(FREQ_700-1)
+#define FREQ_700_H			(FREQ_700+1)
 #define FREQ_1400_L			(FREQ_1400 -1)
 #define FREQ_1400_H			(FREQ_1400 +1)
 #define FREQ_900_L			(FREQ_900 -1)
@@ -101,7 +88,56 @@ static float micBack_output[FFT_SIZE];
 #define FREQ_1150_L			(FREQ_1150 -1)
 #define FREQ_1150_H			(FREQ_1150 +1)
 
+/*
+ * Enum used to identify the different orientations that the robot
+ * is able to make depending on where the sound is coming from ; used
+ * within the functions "determin_sound_state" and "move_to_sound"
+ */
+typedef enum {
+	DEG_0 = 0,
+	DEG_45_RIGHT,
+	DEG_90_RIGHT,
+	DEG_135_RIGHT,
+	DEG_180,
+	DEG_45_LEFT,
+	DEG_90_LEFT,
+	DEG_135_LEFT,
+	DONT_MOVE //Extra case that shouldn't ever be triggered
+} SOUND_ORIENTATION_t;
 
+/*
+ * Enum used to identify which top LEDs should be turned on/off to indicate
+ * what is the current loop distance ; used within the functions
+ * "decrease_loop_distance" and "select_top_led_configuration"
+ *
+ * LED CONFIGURATION SIGNIFICANCE :
+ * 	- if none of the top LEDs are on => loop_distance = 10 cm ;
+ * 	- if one of the top LEDs is on => loop_distance = 20 cm ;
+ * 	- if two of the top LEDs are on => loop_distance = 30 cm ;
+ * 	- if three of the top LEDs are on => loop_distance = 40 cm.
+ */
+typedef enum {
+	LOOP_10 = 0,
+	LOOP_20,
+	LOOP_30,
+	LOOP_40
+} TOP_LED_CONFIGURATION_t;
+
+
+//semaphore
+static BSEMAPHORE_DECL(sendToComputer_sem, TRUE);
+
+//2 times FFT_SIZE because these arrays contain complex numbers (real + imaginary)
+static float micLeft_cmplx_input[2 * FFT_SIZE];
+static float micRight_cmplx_input[2 * FFT_SIZE];
+static float micFront_cmplx_input[2 * FFT_SIZE];
+static float micBack_cmplx_input[2 * FFT_SIZE];
+
+//Arrays containing the computed magnitude of the complex numbers
+static float micLeft_output[FFT_SIZE];
+static float micRight_output[FFT_SIZE];
+static float micFront_output[FFT_SIZE];
+static float micBack_output[FFT_SIZE];
 
 //Arrays containing delta x samples
 static float tab_x_FB[SAMPLE_SIZE];
@@ -112,8 +148,8 @@ static float tab_x_LR[SAMPLE_SIZE];
  * that allow us to determine where the sound is coming
  * from
  */
-static float x_FB_avg = 0;
-static float x_LR_avg = 0;
+static float delta_x_FB_avg = 0;
+static float delta_x_LR_avg = 0;
 
 
 /*
@@ -125,8 +161,12 @@ static int8_t counter_x = 0;
 //Gives us the current frequency that's being detected
 static int16_t max_norm_index = -1;
 
-//Static variable to know if the robot is moving or not
-static int8_t moving = 1;
+/*
+ * Static variable that sets the loop distance used by the "straight_then_turn" function
+ * within the main, this variable is increased/decreased depending on the perceived
+ * frequency
+ */
+static uint8_t loop_distance = MIN_LOOP_DISTANCE;
 
 /*
  * Static variables used within the "processAudioData" function and
@@ -136,7 +176,8 @@ static int8_t moving = 1;
 static uint16_t nb_samples = 0;
 static uint8_t mustSend = 0;
 
-static thread_t *waitThd;
+/*
+static thread_t *waitThd = NULL;
 static THD_WORKING_AREA(waWaitThd, 128);
 static THD_FUNCTION(WaitThd, arg) {
 
@@ -145,16 +186,9 @@ static THD_FUNCTION(WaitThd, arg) {
 
     while(1){
     	chSysLock();
+
     	palTogglePad(GPIOB, GPIOB_LED_BODY);
-    	delay(SystemCoreClock);
-    	palTogglePad(GPIOB, GPIOB_LED_BODY);
-    	delay(HALF_SECOND);
-    	palTogglePad(GPIOB, GPIOB_LED_BODY);
-    	delay(HALF_SECOND);
-    	palTogglePad(GPIOB, GPIOB_LED_BODY);
-    	delay(HALF_SECOND);
-    	palTogglePad(GPIOB, GPIOB_LED_BODY);
-    	delay(HALF_SECOND);
+    	delay (10*HALF_SECOND);
     	palTogglePad(GPIOB, GPIOB_LED_BODY);
     	chSysUnlock();
     	chThdExit(0);
@@ -162,22 +196,20 @@ static THD_FUNCTION(WaitThd, arg) {
     	chThdYield();
     }
 }
+*/
 
-int8_t get_moving (void)
+/*
+ * Function that returns the value of loop_distance => used within the main function
+ */
+uint8_t get_loop_distance (void)
 {
-	return moving;
-}
-
-void set_moving (int8_t new_moving)
-{
-	moving = new_moving;
+	return loop_distance;
 }
 
 /*
  * Simple Delay Function
  * param : n = number of cycles
  */
-
 void delay(unsigned int n)
 {
     while (n--) {
@@ -186,9 +218,8 @@ void delay(unsigned int n)
 }
 
 /*
- * Makes body led blink 4 times at certain frequency
+ * Makes body led blink 4 times
  */
-
 void blink_body (void)
 {
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
@@ -217,17 +248,15 @@ void blink_body (void)
  * 					  microphone
  * return : argument of the complex value within data_dft
  * 			corresponding to the index
- *
  */
-
 float determine_argument (float* data_dft)
 {
 	float ratio = (float)(data_dft[2*max_norm_index+1]/data_dft[2*max_norm_index]);
 
-	//REMEMBER TO EXPLAIN THE EXTRA ARCTAN
+	//Approximation of arctan
 	ratio = (ratio - (float)((ratio*ratio*ratio)/3));
 
-	//Approximation of arctan
+	//Double arctan to get more accurate values
 	return (ratio - (float)((ratio*ratio*ratio)/3));
 }
 
@@ -238,41 +267,37 @@ float determine_argument (float* data_dft)
  * return : the case corresponding to where the sound is coming from
  * 			corresponding to one the fields of the enum
  */
-
 SOUND_ORIENTATION_t determine_sound_state (void)
 {
-	if (abs(x_LR_avg) < MIN_DELTA_X_THRESHOLD)
+	if (abs(delta_x_LR_avg) < MIN_DELTA_X_THRESHOLD)
 	{
-		if (x_FB_avg > 0) return DEG_0; else return DEG_180;
+		if (delta_x_FB_avg > 0) return DEG_0; else return DEG_180;
 	}
 
-	if (abs(x_FB_avg) < MIN_DELTA_X_THRESHOLD)
+	else if (abs(delta_x_FB_avg) < MIN_DELTA_X_THRESHOLD)
 	{
-		if (x_LR_avg < 0) return DEG_90_RIGHT; else return DEG_90_LEFT;
+		if (delta_x_LR_avg < 0) return DEG_90_RIGHT; else return DEG_90_LEFT;
 	}
 
-	if ((abs(x_FB_avg) > MIN_DELTA_X_THRESHOLD) &&
-		(abs(x_LR_avg) > MIN_DELTA_X_THRESHOLD))
+	else if ((abs(delta_x_FB_avg) > MIN_DELTA_X_THRESHOLD) &&
+			 (abs(delta_x_LR_avg) > MIN_DELTA_X_THRESHOLD))
 	{
-		if ((x_FB_avg < 0) && (x_LR_avg < 0)) return DEG_135_RIGHT;
-		if ((x_FB_avg < 0) && (x_LR_avg > 0)) return DEG_135_LEFT;
-		if ((x_FB_avg > 0) && (x_LR_avg < 0)) return DEG_45_RIGHT;
-		if ((x_FB_avg > 0) && (x_LR_avg > 0)) return DEG_45_LEFT;
+		if ((delta_x_FB_avg < 0) && (delta_x_LR_avg < 0)) return DEG_135_RIGHT;
+		if ((delta_x_FB_avg < 0) && (delta_x_LR_avg > 0)) return DEG_135_LEFT;
+		if ((delta_x_FB_avg > 0) && (delta_x_LR_avg < 0)) return DEG_45_RIGHT;
+		if ((delta_x_FB_avg > 0) && (delta_x_LR_avg > 0)) return DEG_45_LEFT;
 	}
 	return DONT_MOVE;
 }
 
 /*
  * These functions are called within the switch of the function "move_to_sound"
- * and make the robot turn towards the sound source, blink BODY_LED multiple
+ * and they make the robot turn towards the sound source, blink BODY_LED multiple
  * times to indicate the direction and finally spin back to its original
  * orientation
  */
-
 void move_deg_0 (void)
 {
-	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	stop ();
 	blink_body ();
 	go ();
@@ -377,7 +402,6 @@ void move_deg_135_left (void)
  * Function that selects one of the 8 previous "move" functions depending
  * on where the sound is coming from
  */
-
 void move_to_sound (void)
 {
 	//Saves initial positions of the motor
@@ -413,88 +437,137 @@ void move_to_sound (void)
 		case DONT_MOVE :
 			break;
 	}
+
+	//Gives back the previously saved motor positions
 	right_motor_set_pos (right_motor_pos);
 	left_motor_set_pos (left_motor_pos);
 }
 
 /*
- * Function that determines from which direction
- * the sound is coming from
+ * Function that determines from which direction the sound is coming from
  */
-
 void determine_sound_origin (void)
 {
-	float time_shift_FB = determine_argument (micFront_cmplx_input) -
-					      determine_argument (micBack_cmplx_input);
+	float phase_shift_FB = determine_argument (micFront_cmplx_input) -
+					       determine_argument (micBack_cmplx_input);
 
-	float time_shift_LR = determine_argument (micLeft_cmplx_input) -
-						  determine_argument (micRight_cmplx_input);
+	float phase_shift_LR = determine_argument (micLeft_cmplx_input) -
+						   determine_argument (micRight_cmplx_input);
 
-	float x_FB = (float)time_shift_FB * SOUND_SPEED * (FFT_SIZE/(20*M_PI*max_norm_index));
-	float x_LR = (float)time_shift_LR * SOUND_SPEED * (FFT_SIZE/(20*M_PI*max_norm_index));
+	float delta_x_FB = (float)phase_shift_FB * SOUND_SPEED * (FFT_SIZE/(20*M_PI*max_norm_index));
+	float delta_x_LR = (float)phase_shift_LR * SOUND_SPEED * (FFT_SIZE/(20*M_PI*max_norm_index));
 
 	if (counter_x < SAMPLE_SIZE)
 	{
-		if ((abs(x_FB) < EPUCK_DIAMETER) &&
-			(abs(x_LR) < EPUCK_DIAMETER))
+		if ((abs(delta_x_FB) < EPUCK_DIAMETER) &&	//Sample collection by filling the array with
+			(abs(delta_x_LR) < EPUCK_DIAMETER))		//correct delta x values
 		{
-			 tab_x_FB[counter_x] = x_FB;
-			 tab_x_LR[counter_x] = x_LR;
+			 tab_x_FB[counter_x] = delta_x_FB;
+			 tab_x_LR[counter_x] = delta_x_LR;
 			 ++counter_x;
 		}
 	} else {
-		x_FB_avg = 0;
-		x_LR_avg = 0;
-		for (int8_t i = 0; i < SAMPLE_SIZE; ++i)
-		{
-			x_FB_avg += tab_x_FB[i];
-			x_LR_avg += tab_x_LR[i];
+		delta_x_FB_avg = 0;							//Average delta x values ready to be determined
+		delta_x_LR_avg = 0;							//move_to_sound function is called afterwards
+		for (int8_t i = 0; i < SAMPLE_SIZE; ++i)	//and counter_x is set back to 0 to restart
+		{											//the sample collection in the next thread call
+			delta_x_FB_avg += tab_x_FB[i];
+			delta_x_LR_avg += tab_x_LR[i];
 		}
-		x_FB_avg = (float)(x_FB_avg/SAMPLE_SIZE);
-		x_LR_avg = (float)(x_LR_avg/SAMPLE_SIZE);
+		delta_x_FB_avg = (float)(delta_x_FB_avg/SAMPLE_SIZE);
+		delta_x_LR_avg = (float)(delta_x_LR_avg/SAMPLE_SIZE);
 		move_to_sound ();
 		counter_x = 0;
 	}
 }
 
 /*
- * FUNCTION USED TO TEST TO SEE IF A THREAD CAN BE CALLED WITHIN A THREAD
- * TO BE DELETED AFTERWARDS
+ * Function that sets a particular top led configuration, depending on the
+ * current loop distance, using a switch
  */
-
-void freq350_handler (void)
+void select_top_led_configuration (TOP_LED_CONFIGURATION_t config)
 {
-	/*
-	if (get_moving ())
+	switch (config)
 	{
-		palTogglePad(GPIOB, GPIOB_LED_BODY);
-		//suspend_TOF ();
-		stop ();
-		set_moving (0);
-	} else
-	{
-		palTogglePad(GPIOB, GPIOB_LED_BODY);
-		go ();
-		//resume_TOF ();
-		set_moving (1);
+		case LOOP_10 :
+			palSetPad(GPIOD, GPIOD_LED1);
+			palSetPad(GPIOD, GPIOD_LED3);
+			palSetPad(GPIOD, GPIOD_LED5);
+			palSetPad(GPIOD, GPIOD_LED7);
+			break;
+		case LOOP_20 :
+			palClearPad(GPIOD, GPIOD_LED1);
+			palSetPad(GPIOD, GPIOD_LED3);
+			palSetPad(GPIOD, GPIOD_LED5);
+			palSetPad(GPIOD, GPIOD_LED7);
+			break;
+		case LOOP_30 :
+			palClearPad(GPIOD, GPIOD_LED1);
+			palClearPad(GPIOD, GPIOD_LED3);
+			palSetPad(GPIOD, GPIOD_LED5);
+			palSetPad(GPIOD, GPIOD_LED7);
+			break;
+		case LOOP_40 :
+			palClearPad(GPIOD, GPIOD_LED1);
+			palClearPad(GPIOD, GPIOD_LED3);
+			palClearPad(GPIOD, GPIOD_LED5);
+			palSetPad(GPIOD, GPIOD_LED7);
 	}
-	chThdSleepMilliseconds(1000);
-	*/
-	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	stop ();
-	for (int8_t i = 0; i < 6; ++i)
+}
+
+/*
+ * Function that increments the loop distance by 10 cm
+ */
+void increase_loop_distance (void)
+{
+	if (loop_distance < MAX_LOOP_DISTANCE)
 	{
-		delay (HALF_SECOND);
+		loop_distance += DISTANCE_INCREMENT;
+
+		if (loop_distance == MIN_LOOP_DISTANCE)
+		{
+			select_top_led_configuration (LOOP_10);
+		} else if (loop_distance == MIN_LOOP_DISTANCE + DISTANCE_INCREMENT)
+		{
+			select_top_led_configuration (LOOP_20);
+		} else if (loop_distance == MIN_LOOP_DISTANCE + 2*DISTANCE_INCREMENT)
+		{
+			select_top_led_configuration (LOOP_30);
+		} else if (loop_distance == MAX_LOOP_DISTANCE)
+		{
+			select_top_led_configuration (LOOP_40);
+		}
 	}
-	go ();
-	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	chThdSleepMilliseconds (1000);
+}
+
+/*
+ * Function that decrements the loop distance by 10 cm
+ */
+void decrease_loop_distance (void)
+{
+	if (loop_distance > MIN_LOOP_DISTANCE) loop_distance -= DISTANCE_INCREMENT;
+
+	if (loop_distance == MIN_LOOP_DISTANCE)
+	{
+		select_top_led_configuration (LOOP_10);
+	} else if (loop_distance == MIN_LOOP_DISTANCE + DISTANCE_INCREMENT)
+	{
+		select_top_led_configuration (LOOP_20);
+	} else if (loop_distance == MIN_LOOP_DISTANCE + 2*DISTANCE_INCREMENT)
+	{
+		select_top_led_configuration (LOOP_30);
+	} else if (loop_distance == MAX_LOOP_DISTANCE)
+	{
+		select_top_led_configuration (LOOP_40);
+	}
+	chThdSleepMilliseconds (1000);
 }
 
 /*
  * Makes the robot spin once in one direction and then spins one more time in
  * the other direction (called when one of the frequencies is perceived)
  */
-
 void  spin_left_then_right (void)
 {
 	stop();
@@ -512,45 +585,37 @@ void  spin_left_then_right (void)
 /*
  * Stops the robot for a couple of seconds and makes it move again
  */
-
 void stop_and_go (void)
 {
-//	//static systime_t start_time;
-//	if (moving == GO)
-//	{
-//		//start_time = //prends temps
-//		palTogglePad(GPIOB, GPIOB_LED_BODY);
-//		stop ();
-//		moving = STOP;
-//	} else
-//	{
-//		//if(/*time*/ - start_time > THRESHHOLD){
-//			palTogglePad(GPIOB, GPIOB_LED_BODY);
-//			go ();
-//			moving = GO;
-//		//}
-//	}
+	uint32_t right_motor_pos = right_motor_get_pos ();
+	uint32_t left_motor_pos = left_motor_get_pos ();
 
-	//chSysLock();
-//	chThdSuspendS(&tofThd);
-//	chSysUnlock();
-//	chSysLock();
-//	chThdSuspendS(&mainThread);
+	stop ();
+	//waitThd = chThdCreateStatic(waWaitThd, sizeof(waWaitThd), NORMALPRIO+50, WaitThd, NULL);
 	//chSysUnlock();
-	//int32_t right_motor_pos = right_motor_get_pos ();
-	//int32_t left_motor_pos = left_motor_get_pos ();
-	stop();
-	waitThd = chThdCreateStatic(waWaitThd, sizeof(waWaitThd), NORMALPRIO+50, WaitThd, NULL);
 
-	//palTogglePad(GPIOB, GPIOB_LED_BODY);
-	//delay(10*HALF_SECOND);
-	//palTogglePad(GPIOB, GPIOB_LED_BODY);
+
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	delay(10*HALF_SECOND);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	right_motor_set_pos (right_motor_pos);
+	left_motor_set_pos (left_motor_pos);
+}
+
+/*
+ * Makes the robot go back for cm
+ */
+void go_back (void)
+{
+	//uint32_t right_motor_pos = right_motor_get_pos ();
+	//uint32_t left_motor_pos = left_motor_get_pos ();
+
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	straight_line (5, BACK);
+	palTogglePad(GPIOB, GPIOB_LED_BODY);
+
 	//right_motor_set_pos (right_motor_pos);
 	//left_motor_set_pos (left_motor_pos);
-	//chSysUnlock();
-
-//	chThdResume(&tofThd, (msg_t)0x1337);
-
 }
 
 /*
@@ -561,7 +626,7 @@ void stop_and_go (void)
 */
 void sound_remote(float* data)
 {
-	float max_norm = MIN_VALUE_THRESHOLD;
+	float max_norm  = MIN_VALUE_THRESHOLD;
 
 	//search for the highest peak
 	for(uint16_t i = MIN_FREQ ; i <= MAX_FREQ ; i++)
@@ -572,29 +637,33 @@ void sound_remote(float* data)
 		}
 	}
 
-	//350 OK
-	//406 OK, MOST PROBABLY WONT BE USED SO TO BE REMOVED
+	/*
+	 * FREQUENCIES NEED TO BE ADAPTED ACCORDING TO THE ROOM THE PRESENTATION
+	 * WILL BE DONE
+	 */
+	//350 OK... sometimes chelou
+	//406 OK... sometimes chelou
+	//500 OK
+	//700 OK
 	//1150 OK
 	//1400 OK
 
 	if (max_norm_index >= FREQ_350_L && max_norm_index <= FREQ_350_H)
 	{
-		chprintf((BaseSequentialStream *)&SD3, "350\r\n\n");
 		stop_and_go ();
-		//chThdSleepMilliseconds(1000);
-	}
-
-	else if (max_norm_index >= FREQ_406_L && max_norm_index <= FREQ_406_H)
+	} else if (max_norm_index >= FREQ_406_L && max_norm_index <= FREQ_406_H)
 	{
 		spin_left_then_right ();
-	}
-
-	else if (max_norm_index >= FREQ_1150_L && max_norm_index <= FREQ_1150_H)
+	} else if (max_norm_index >= FREQ_500_L && max_norm_index <= FREQ_500_H)
 	{
-
-	}
-
-	else if (max_norm_index >= FREQ_1400_L && max_norm_index <= FREQ_1400_H)
+		decrease_loop_distance ();
+	} else if (max_norm_index >= FREQ_700_L && max_norm_index <= FREQ_700_H)
+	{
+		go_back ();
+	} else if (max_norm_index >= FREQ_1150_L && max_norm_index <= FREQ_1150_H)
+	{
+		increase_loop_distance ();
+	} else if (max_norm_index >= FREQ_1400_L && max_norm_index <= FREQ_1400_H)
 	{
 		determine_sound_origin ();
 	}
@@ -656,7 +725,6 @@ void fill_arrays (int16_t *data, uint16_t i)
 void processAudioData(int16_t *data, uint16_t num_samples)
 {
 	chThdSetPriority(NORMALPRIO+12);
-	//int motor_pos = right_motor_get_pos();
 
 	//loop to fill the buffers
 	for(uint16_t i = 0 ; i < num_samples ; i+=4)
@@ -684,7 +752,6 @@ void processAudioData(int16_t *data, uint16_t num_samples)
 
 		sound_remote(micLeft_output);
 	}
-	//right_motor_set_pos(motor_pos);
 }
 
 
