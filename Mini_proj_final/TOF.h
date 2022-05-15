@@ -35,6 +35,9 @@ bool verify_dist(int distance, int added_dist, int dist_travelled);
 
 void align(void);
 
+//Checks multiple time the distance to reduce error
+bool check_dist(uint16_t distance);
+
 #endif /* TOF_H_ */
 
 

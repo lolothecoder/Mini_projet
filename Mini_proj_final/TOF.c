@@ -3,7 +3,7 @@
 #include "motors.h"
 #include <chprintf.h>
 #include <sensors/VL53L0X/VL53L0X.h>
-//#include <main.h>
+#include <main.h>
 #include <motors_lib.h>
 #include <TOF.h>
 #include <audio_processing.h>
@@ -28,9 +28,11 @@
 
 #define CALC_ERROR				1 	//Needs to be added while computing a distance
 
+#define THRESHOLD_TOF			14
+
 //Alignment stuff might remove later
 #define ALIGNMENT				10
-#define SAMPLES					100
+#define SAMPLES					20
 
 //Checks if the robot tries to go further than LOOP_DISTANCE
 //defined in main.h
@@ -49,7 +51,7 @@ static THD_FUNCTION(TOF, arg) {
 
     while(1)
 	{
-		if(find_dist(OBSTACLE_DISTANCE)) //checks if there is an obstacle
+		if(check_dist(OBSTACLE_DISTANCE)) //checks if there is an obstacle
 		{
 
 			chprintf((BaseSequentialStream *)&SD3, "SPOTTED OBSTACLE\r\n\n");
@@ -114,6 +116,17 @@ int multi_dist(void)
 	return distance_fin/SAMPLES;
 }
 
+bool check_dist(uint16_t distance){
+	uint8_t counter = 0;
+	bool answer = false;
+	for(uint8_t i = 0; i < SAMPLES; i++){
+		if(VL53L0X_get_dist_mm() < distance) counter++;
+	}
+	if (counter > THRESHOLD_TOF){
+		answer = true;
+	}
+	return answer;
+}
 //Checks how far the robot has to go to clear the obstacle
 //if the robot is able to do a full 180 without seeing an object
 //then he has cleared the obstacle
@@ -123,7 +136,7 @@ int distance_till_safe(int dist_travelled)
 	int counter = 0; //the amount of turns done by the robot
 	while(counter < NUM_OF_1_ON_16_TURNS && !broken_loop)
 	{
-		if (find_dist(OBSTACLE_DISTANCE)) { //checks if the object is L shaped
+		if (check_dist(OBSTACLE_DISTANCE)) { //checks if the object is L shaped
 			chprintf((BaseSequentialStream *)&SD3, "L SHAPE\r\n\n");
 			distance += dodge_obstacle(); //dodges L shape object
 			Lshape = true;
@@ -154,9 +167,9 @@ int distance_till_safe(int dist_travelled)
 int get_closer(int distance)
 {
 	init_pos_motor();
-	if(!find_dist(OBSTACLE_DISTANCE)){
+	if(!check_dist(OBSTACLE_DISTANCE)){
 		set_speed(get_current_speed ());
-		while(!find_dist(OBSTACLE_DISTANCE) && abs(right_motor_get_pos()) < dist_to_steps(distance)){}
+		while(!check_dist(OBSTACLE_DISTANCE) && abs(right_motor_get_pos()) < dist_to_steps(distance)){}
 	}
 	if(abs(right_motor_get_pos()) >= dist_to_steps(distance)) return dist_to_steps(distance);
 	return abs(right_motor_get_pos());
@@ -169,7 +182,7 @@ uint8_t search(void)
 	for(uint8_t i = 0; i < NUM_OF_1_ON_16_TURNS; i++){
 		eight_times_two_turns(SINGLE_TURN,RIGHT_TURN, SEARCH_SPEED);
 		counter++;
-		if(find_dist(OBSTACLE_DISTANCE + ERROR)){
+		if(check_dist(OBSTACLE_DISTANCE + ERROR)){
 			chprintf((BaseSequentialStream *)&SD3, "counter right = %d%\r\n\n", counter);
 			break;
 		}

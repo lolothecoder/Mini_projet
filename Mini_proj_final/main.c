@@ -39,9 +39,9 @@ int main(void)
     serial_start();
     usb_start();
     motors_init();
-    //TOF_start();
-    mic_start(&processAudioData);
     selector_start ();
+    TOF_start();
+    //mic_start(&processAudioData);
 
     chThdSetPriority(NORMALPRIO-1);
 

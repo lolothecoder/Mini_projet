@@ -17,7 +17,7 @@
 #include "motors.h"
 #include <audio/microphone.h>
 #include <audio_processing.h>
-//#include <communications.h>
+#include <communications.h>
 #include <fft.h>
 #include <arm_math.h>
 
@@ -166,7 +166,7 @@ static int16_t max_norm_index = -1;
  * within the main, this variable is increased/decreased depending on the perceived
  * frequency
  */
-static uint8_t loop_distance = MIN_LOOP_DISTANCE;
+static uint8_t loop_distance = MAX_LOOP_DISTANCE;
 
 /*
  * Static variables used within the "processAudioData" function and
