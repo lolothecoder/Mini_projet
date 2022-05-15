@@ -26,10 +26,8 @@
 #define DEG_90_TURN			1
 #define DEG_180_TURN		2
 #define ONE_TURN			4
-#define GO					1
-#define STOP				0
-#define TWO_TURNS			8
 #define MIN_VALUE_THRESHOLD	10000
+#define MUST_SEND_THRESHOLD	1
 #define EPUCK_DIAMETER		73 	//[mm]
 #define SOUND_SPEED			343 //[m/s]
 #define MIN_LOOP_DISTANCE	10  //[cm]
@@ -54,16 +52,10 @@
 //we don't analyze before this index to not use resources for nothing
 #define MIN_FREQ		10
 
-#define FREQ_250		16	//250Hz
-#define FREQ_296		19	//296Hz
 #define FREQ_350		23	//350Hz
 #define FREQ_406		26	//406Hz
 #define FREQ_500		33	//500Hz
 #define FREQ_600		38	//600Hz
-#define FREQ_700		45  //700Hz
-#define FREQ_800		51	//800Hz
-#define FREQ_900		58  //900Hz
-#define FREQ_1000		64  //1000Hz
 #define FREQ_1150		74	//1150Hz
 #define FREQ_1300		83  //1300Hz
 #define FREQ_1400		91  //1400Hz
@@ -72,10 +64,6 @@
 #define MAX_FREQ		100
 
 //Lower and upper bounds used within the sound_remote function
-#define FREQ_250_L			(FREQ_250-1)
-#define FREQ_250_H			(FREQ_250+1)
-#define FREQ_296_L			(FREQ_296-1)
-#define FREQ_296_H			(FREQ_296+1)
 #define FREQ_350_L			(FREQ_350-1)
 #define FREQ_350_H			(FREQ_350+1)
 #define FREQ_406_L			(FREQ_406-1)
@@ -84,20 +72,12 @@
 #define FREQ_500_H			(FREQ_500+1)
 #define FREQ_600_L			(FREQ_600-1)
 #define FREQ_600_H			(FREQ_600+1)
-#define FREQ_700_L			(FREQ_700-1)
-#define FREQ_700_H			(FREQ_700+1)
-#define FREQ_800_L			(FREQ_800-1)
-#define FREQ_800_H			(FREQ_800+1)
-#define FREQ_900_L			(FREQ_900 -1)
-#define FREQ_900_H			(FREQ_900 +1)
-#define FREQ_1000_L			(FREQ_1000 -1)
-#define FREQ_1000_H			(FREQ_1000 +1)
+#define FREQ_1150_L			(FREQ_1150 -1)
+#define FREQ_1150_H			(FREQ_1150 +1)
 #define FREQ_1300_L			(FREQ_1300 -2)
 #define FREQ_1300_H			(FREQ_1300 +2)
 #define FREQ_1400_L			(FREQ_1400 -1)
 #define FREQ_1400_H			(FREQ_1400 +1)
-#define FREQ_1150_L			(FREQ_1150 -1)
-#define FREQ_1150_H			(FREQ_1150 +1)
 
 /*
  * Enum used to identify the different orientations that the robot
@@ -166,28 +146,6 @@ static uint8_t loop_distance = MAX_LOOP_DISTANCE;
  */
 static uint16_t nb_samples = 0;
 static uint8_t mustSend = 0;
-
-/*
-static thread_t *waitThd = NULL;
-static THD_WORKING_AREA(waWaitThd, 128);
-static THD_FUNCTION(WaitThd, arg) {
-
-    chRegSetThreadName(__FUNCTION__);
-    (void)arg;
-
-    while(1){
-    	chSysLock();
-
-    	palTogglePad(GPIOB, GPIOB_LED_BODY);
-    	delay (10*HALF_SECOND);
-    	palTogglePad(GPIOB, GPIOB_LED_BODY);
-    	chSysUnlock();
-    	chThdExit(0);
-    	waitThd = NULL;
-    	chThdYield();
-    }
-}
-*/
 
 /*
  * Function that returns the value of loop_distance => used within the main function
@@ -370,14 +328,14 @@ void move_deg_90_left (void)
 void move_deg_135_left (void)
 {
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	quarter_turns (1, LEFT_TURN);
-	eight_times_two_turns (2, LEFT_TURN, MOTOR_SPEED);
+	quarter_turns (DEG_90_TURN, LEFT_TURN);
+	eight_times_two_turns (DEG_45_TURN, LEFT_TURN, MOTOR_SPEED);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	stop ();
 	blink_body ();
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	quarter_turns (1, RIGHT_TURN);
-	eight_times_two_turns (2, RIGHT_TURN, MOTOR_SPEED);
+	quarter_turns (DEG_90_TURN, RIGHT_TURN);
+	eight_times_two_turns (DEG_45_TURN, RIGHT_TURN, MOTOR_SPEED);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 }
 
@@ -582,8 +540,9 @@ void stop_and_go (void)
 
 
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	delay(10*HALF_SECOND);
+	delay(2*HALF_SECOND);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
+	blink_body ();
 	right_motor_set_pos (right_motor_pos);
 	left_motor_set_pos (left_motor_pos);
 }
@@ -627,17 +586,6 @@ void sound_remote(float* data)
 			max_norm_index = i;
 		}
 	}
-
-	/*
-	 * FREQUENCIES NEED TO BE ADAPTED ACCORDING TO THE ROOM THE PRESENTATION
-	 * WILL BE DONE
-	 */
-	//350 OK... sometimes chelou
-	//406 OK... sometimes chelou
-	//500 OK
-	//700 OK
-	//1150 OK
-	//1400 OK
 
 	if (max_norm_index >= FREQ_350_L && max_norm_index <= FREQ_350_H)
 	{
@@ -731,7 +679,7 @@ void processAudioData(int16_t *data, uint16_t num_samples)
 
 		compute_fft_and_mag ();
 
-		if(mustSend > 1){
+		if(mustSend > MUST_SEND_THRESHOLD){
 			//signals to send the result to the computer
 			chBSemSignal(&sendToComputer_sem);
 			mustSend = 0;

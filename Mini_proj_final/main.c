@@ -32,6 +32,7 @@ static void serial_start(void)
 
 int main(void)
 {
+
     halInit();
     chSysInit();
     mpu_init();

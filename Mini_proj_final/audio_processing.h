@@ -15,7 +15,7 @@
 extern "C" {
 #endif
 
-#define HALF_SECOND 		SystemCoreClock/32
+#define HALF_SECOND 		SystemCoreClock/8
 
 /*
  * Enum used to identify which top LEDs should be turned on/off to indicate
