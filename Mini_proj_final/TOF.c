@@ -86,7 +86,7 @@ uint8_t search(void)
 }
 
 //Checks if the obstacle has been removed. If so we go back in the loop
-bool object_removed(uint8_t distances[DIST_SIZE])
+bool object_removed(int distances[DIST_SIZE])
 {
 	if(search() == NUM_OF_1_ON_16_TURNS)
 	{
@@ -101,7 +101,7 @@ bool object_removed(uint8_t distances[DIST_SIZE])
 }
 
 //checks if we are still in the loop
-bool verify_dist(uint8_t distance, uint8_t added_dist, int dist_travelled)
+bool verify_dist(int distance, uint8_t added_dist, int dist_travelled)
 {
 	if(dist_travelled +distance + added_dist < get_loop_distance ()+CALC_ERROR) return true;
 	return false;
@@ -109,7 +109,7 @@ bool verify_dist(uint8_t distance, uint8_t added_dist, int dist_travelled)
 
 int dodge_obstacle(void)
 {
-	uint8_t distances[DIST_SIZE] = {0};
+	int distances[DIST_SIZE] = {0};
 	quarter_turns(SINGLE_TURN,LEFT_TURN);
 
 	distances[AXIS_1] = distance_till_safe(dist_travelled[AXIS_2]); //Dodges first side of the obstacle
