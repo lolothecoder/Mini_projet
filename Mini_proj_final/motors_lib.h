@@ -45,8 +45,11 @@ int steps_to_dist(int steps);
 
 void infinite_stop(void);
 
+//Returns the value of current_speed to be used in other modules
 int32_t get_current_speed (void);
 
+//Initializes the thread that utilizes the selector to change the
+//value of current_speed through the selector configuration
 void selector_start(void);
 
 //Chelou functions that may get deleted but are cool for testing

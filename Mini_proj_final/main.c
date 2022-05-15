@@ -41,7 +41,8 @@ int main(void)
     motors_init();
     selector_start ();
     TOF_start();
-    //mic_start(&processAudioData);
+    mic_start(&processAudioData);
+    select_top_led_configuration (LOOP_40);
 
     chThdSetPriority(NORMALPRIO-1);
 

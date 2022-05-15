@@ -12,7 +12,7 @@
 #include "hal.h"
 #include <main.h>
 #include <usbcfg.h>
-//#include <chprintf.h>
+#include <chprintf.h>
 #include <motors_lib.h>
 #include "motors.h"
 #include <audio/microphone.h>
@@ -60,9 +60,13 @@
 #define FREQ_350		23	//350Hz
 #define FREQ_406		26	//406Hz
 #define FREQ_500		33	//500Hz
+#define FREQ_600		38	//600Hz
 #define FREQ_700		45  //700Hz
+#define FREQ_800		51	//800Hz
 #define FREQ_900		58  //900Hz
+#define FREQ_1000		64  //1000Hz
 #define FREQ_1150		74	//1150Hz
+#define FREQ_1300		83  //1300Hz
 #define FREQ_1400		91  //1400Hz
 
 //we don't analyze after this index to not use resources for nothing
@@ -77,14 +81,22 @@
 #define FREQ_350_H			(FREQ_350+1)
 #define FREQ_406_L			(FREQ_406-1)
 #define FREQ_406_H			(FREQ_406+1)
-#define FREQ_500_H			(FREQ_500+1)
 #define FREQ_500_L			(FREQ_500-1)
+#define FREQ_500_H			(FREQ_500+1)
+#define FREQ_600_L			(FREQ_600-1)
+#define FREQ_600_H			(FREQ_600+1)
 #define FREQ_700_L			(FREQ_700-1)
 #define FREQ_700_H			(FREQ_700+1)
-#define FREQ_1400_L			(FREQ_1400 -1)
-#define FREQ_1400_H			(FREQ_1400 +1)
+#define FREQ_800_L			(FREQ_800-1)
+#define FREQ_800_H			(FREQ_800+1)
 #define FREQ_900_L			(FREQ_900 -1)
 #define FREQ_900_H			(FREQ_900 +1)
+#define FREQ_1000_L			(FREQ_1000 -1)
+#define FREQ_1000_H			(FREQ_1000 +1)
+#define FREQ_1300_L			(FREQ_1300 -2)
+#define FREQ_1300_H			(FREQ_1300 +2)
+#define FREQ_1400_L			(FREQ_1400 -1)
+#define FREQ_1400_H			(FREQ_1400 +1)
 #define FREQ_1150_L			(FREQ_1150 -1)
 #define FREQ_1150_H			(FREQ_1150 +1)
 
@@ -104,25 +116,6 @@ typedef enum {
 	DEG_135_LEFT,
 	DONT_MOVE //Extra case that shouldn't ever be triggered
 } SOUND_ORIENTATION_t;
-
-/*
- * Enum used to identify which top LEDs should be turned on/off to indicate
- * what is the current loop distance ; used within the functions
- * "decrease_loop_distance" and "select_top_led_configuration"
- *
- * LED CONFIGURATION SIGNIFICANCE :
- * 	- if none of the top LEDs are on => loop_distance = 10 cm ;
- * 	- if one of the top LEDs is on => loop_distance = 20 cm ;
- * 	- if two of the top LEDs are on => loop_distance = 30 cm ;
- * 	- if three of the top LEDs are on => loop_distance = 40 cm.
- */
-typedef enum {
-	LOOP_10 = 0,
-	LOOP_20,
-	LOOP_30,
-	LOOP_40
-} TOP_LED_CONFIGURATION_t;
-
 
 //semaphore
 static BSEMAPHORE_DECL(sendToComputer_sem, TRUE);
@@ -150,7 +143,6 @@ static float tab_x_LR[SAMPLE_SIZE];
  */
 static float delta_x_FB_avg = 0;
 static float delta_x_LR_avg = 0;
-
 
 /*
  * Variable that allows to control whether we've collected enough
@@ -300,7 +292,6 @@ void move_deg_0 (void)
 {
 	stop ();
 	blink_body ();
-	go ();
 }
 
 void move_deg_45_right (void)
@@ -313,7 +304,6 @@ void move_deg_45_right (void)
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	eight_times_two_turns (DEG_45_TURN, LEFT_TURN, MOTOR_SPEED);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	go ();
 }
 
 void move_deg_90_right (void)
@@ -326,7 +316,6 @@ void move_deg_90_right (void)
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	quarter_turns (DEG_90_TURN, LEFT_TURN);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	go ();
 }
 
 void move_deg_135_right (void)
@@ -341,7 +330,6 @@ void move_deg_135_right (void)
 	eight_times_two_turns (DEG_45_TURN, LEFT_TURN, MOTOR_SPEED);
 	quarter_turns (DEG_90_TURN, LEFT_TURN);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	go ();
 }
 
 void move_deg_180 (void)
@@ -354,7 +342,6 @@ void move_deg_180 (void)
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	quarter_turns (DEG_180_TURN, RIGHT_TURN);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	go ();
 }
 
 void move_deg_45_left (void)
@@ -367,7 +354,6 @@ void move_deg_45_left (void)
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	eight_times_two_turns (DEG_45_TURN, RIGHT_TURN, MOTOR_SPEED);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	go ();
 }
 
 void move_deg_90_left (void)
@@ -380,7 +366,6 @@ void move_deg_90_left (void)
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	quarter_turns (DEG_90_TURN, RIGHT_TURN);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	go ();
 }
 
 void move_deg_135_left (void)
@@ -395,7 +380,6 @@ void move_deg_135_left (void)
 	quarter_turns (1, RIGHT_TURN);
 	eight_times_two_turns (2, RIGHT_TURN, MOTOR_SPEED);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
-	go ();
 }
 
 /*
@@ -405,6 +389,7 @@ void move_deg_135_left (void)
 void move_to_sound (void)
 {
 	//Saves initial positions of the motor
+	stop ();
 	int32_t right_motor_pos = right_motor_get_pos ();
 	int32_t left_motor_pos = left_motor_get_pos ();
 
@@ -439,6 +424,7 @@ void move_to_sound (void)
 	}
 
 	//Gives back the previously saved motor positions
+	stop ();
 	right_motor_set_pos (right_motor_pos);
 	left_motor_set_pos (left_motor_pos);
 }
@@ -496,22 +482,23 @@ void select_top_led_configuration (TOP_LED_CONFIGURATION_t config)
 			palSetPad(GPIOD, GPIOD_LED7);
 			break;
 		case LOOP_20 :
-			palClearPad(GPIOD, GPIOD_LED1);
-			palSetPad(GPIOD, GPIOD_LED3);
+			palSetPad(GPIOD, GPIOD_LED1);
+			palClearPad(GPIOD, GPIOD_LED3);
 			palSetPad(GPIOD, GPIOD_LED5);
 			palSetPad(GPIOD, GPIOD_LED7);
 			break;
 		case LOOP_30 :
-			palClearPad(GPIOD, GPIOD_LED1);
-			palClearPad(GPIOD, GPIOD_LED3);
-			palSetPad(GPIOD, GPIOD_LED5);
-			palSetPad(GPIOD, GPIOD_LED7);
-			break;
-		case LOOP_40 :
-			palClearPad(GPIOD, GPIOD_LED1);
+			palSetPad(GPIOD, GPIOD_LED1);
 			palClearPad(GPIOD, GPIOD_LED3);
 			palClearPad(GPIOD, GPIOD_LED5);
 			palSetPad(GPIOD, GPIOD_LED7);
+			break;
+		case LOOP_40 :
+			palSetPad(GPIOD, GPIOD_LED1);
+			palClearPad(GPIOD, GPIOD_LED3);
+			palClearPad(GPIOD, GPIOD_LED5);
+			palClearPad(GPIOD, GPIOD_LED7);
+			break;
 	}
 }
 
@@ -603,15 +590,20 @@ void stop_and_go (void)
 }
 
 /*
- * Makes the robot go back for cm
+ * Makes the robot go back and forth a couple of times
  */
-void go_back (void)
+void go_back_and_forth (void)
 {
 	//uint32_t right_motor_pos = right_motor_get_pos ();
 	//uint32_t left_motor_pos = left_motor_get_pos ();
 
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	straight_line (5, BACK);
+	straight_line (5, STRAIGHT);
+	straight_line (5, BACK);
+	straight_line (5, STRAIGHT);
+	straight_line (5, BACK);
+	straight_line (5, STRAIGHT);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 
 	//right_motor_set_pos (right_motor_pos);
@@ -651,18 +643,18 @@ void sound_remote(float* data)
 	if (max_norm_index >= FREQ_350_L && max_norm_index <= FREQ_350_H)
 	{
 		stop_and_go ();
-	} else if (max_norm_index >= FREQ_406_L && max_norm_index <= FREQ_406_H)
+	} else if (max_norm_index >= FREQ_1300_L && max_norm_index <= FREQ_1300_H)
 	{
 		spin_left_then_right ();
 	} else if (max_norm_index >= FREQ_500_L && max_norm_index <= FREQ_500_H)
 	{
 		decrease_loop_distance ();
-	} else if (max_norm_index >= FREQ_700_L && max_norm_index <= FREQ_700_H)
-	{
-		go_back ();
-	} else if (max_norm_index >= FREQ_1150_L && max_norm_index <= FREQ_1150_H)
+	} else if (max_norm_index >= FREQ_600_L && max_norm_index <= FREQ_600_H)
 	{
 		increase_loop_distance ();
+	} else if (max_norm_index >= FREQ_1150_L && max_norm_index <= FREQ_1150_H)
+	{
+		go_back_and_forth ();
 	} else if (max_norm_index >= FREQ_1400_L && max_norm_index <= FREQ_1400_H)
 	{
 		determine_sound_origin ();
@@ -736,17 +728,15 @@ void processAudioData(int16_t *data, uint16_t num_samples)
 		}
 	}
 
-	if(nb_samples >= (2 * FFT_SIZE)){
+	if (nb_samples >= (2 * FFT_SIZE)){
 
 		compute_fft_and_mag ();
-
 
 		if(mustSend > 1){
 			//signals to send the result to the computer
 			chBSemSignal(&sendToComputer_sem);
 			mustSend = 0;
 		}
-
 		nb_samples = 0;
 		mustSend++;
 
