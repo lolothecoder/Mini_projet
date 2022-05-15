@@ -31,9 +31,6 @@ void loop_start(void);
 //Sets speed to 0
 void stop (void);
 
-//Sets the speed to MOTOR_SPEED
-void go (void);
-
 //Sets the speed to a given speed
 void set_speed(int speed);
 
@@ -51,10 +48,5 @@ int32_t get_current_speed (void);
 //Initializes the thread that utilizes the selector to change the
 //value of current_speed through the selector configuration
 void selector_start(void);
-
-//Chelou functions that may get deleted but are cool for testing
-int conditional_advance(uint8_t distance, uint8_t dir,  bool continue_advance);
-
-void hundreed_turn(uint8_t num_of_hundreed_turns, int dir);
 
 #endif /* MOTORS_LIB_H */

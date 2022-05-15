@@ -19,14 +19,6 @@
 #define PERIMETER_EPUCK     (PI * WHEEL_DISTANCE)
 #define ALIGN_SPEED			200
 
-
-struct motor_speed {
-	int16_t left_speed;
-	int16_t right_speed;
-};
-
-struct motor_speed motors;
-
 //Value that's changed via the selector
 float current_speed = MOTOR_SPEED; // [steps/s]
 
@@ -38,30 +30,15 @@ void init_pos_motor(void)
 
 void straight_line(uint8_t distance, int dir)
 {
-	/*
-	init_pos_motor();
-	while(abs(right_motor_get_pos()) < distance* NSTEP_ONE_TURN / WHEEL_PERIMETER){
-		left_motor_set_speed(dir * MOTOR_SPEED);
-		right_motor_set_speed(dir * MOTOR_SPEED);
-	}
-	left_motor_set_speed(0);
-	right_motor_set_speed(0);
-	motors.right_speed = 0;
-	*/
-
 	init_pos_motor();
 	left_motor_set_speed(dir * current_speed);
-	motors.left_speed = dir * current_speed;
 	right_motor_set_speed(dir * current_speed);
-	motors.right_speed = dir * current_speed;
 	while(abs(right_motor_get_pos()) < distance* NSTEP_ONE_TURN / WHEEL_PERIMETER){
 		left_motor_set_speed(dir * current_speed);
 		right_motor_set_speed(dir * current_speed);
 	}
 	left_motor_set_speed(0);
-	motors.left_speed = 0;
 	right_motor_set_speed(0);
-	motors.right_speed = 0;
 }
 
 void quarter_turns(uint8_t num_of_quarter_turns, int dir)
@@ -123,49 +100,12 @@ void infinite_stop(void){
 	while(1){}
 }
 
-void go (void)
-{
-	left_motor_set_speed (current_speed);
-	right_motor_set_speed (current_speed);
-	motors.left_speed = current_speed;
-	motors.right_speed = current_speed;
-}
-
 int dist_to_steps(int distance){
 	return distance* NSTEP_ONE_TURN / WHEEL_PERIMETER;
 }
 
 int steps_to_dist(int steps){
 	return steps*  WHEEL_PERIMETER / NSTEP_ONE_TURN ;
-}
-
-int conditional_advance(uint8_t distance, uint8_t dir, bool continue_advance){
-	init_pos_motor();
-	left_motor_set_speed(dir * current_speed);
-	right_motor_set_speed(dir * current_speed);
-	while(abs(right_motor_get_pos()) < distance* NSTEP_ONE_TURN / WHEEL_PERIMETER && continue_advance){}
-	left_motor_set_speed(0);
-	right_motor_set_speed(0);
-	return abs(right_motor_get_pos());
-}
-
-void hundreed_turn(uint8_t num_of_hundreed_turns, int dir)
-{
-	init_pos_motor();
-	if (dir == 1){
-		while(right_motor_get_pos() < num_of_hundreed_turns*PERIMETER_EPUCK/300* NSTEP_ONE_TURN / WHEEL_PERIMETER){
-			left_motor_set_speed(-dir * ALIGN_SPEED);
-			right_motor_set_speed(dir * ALIGN_SPEED);
-		}
-	}else
-	{
-		while(left_motor_get_pos() < num_of_hundreed_turns*PERIMETER_EPUCK/300* NSTEP_ONE_TURN / WHEEL_PERIMETER){
-			left_motor_set_speed(-dir * ALIGN_SPEED);
-			right_motor_set_speed(dir * ALIGN_SPEED);
-		}
-	}
-	left_motor_set_speed(0);
-	right_motor_set_speed(0);
 }
 
 int32_t get_current_speed (void)
