@@ -76,7 +76,7 @@ static THD_FUNCTION(TOF, arg) {
 				right_motor_set_pos(motor_pos+dist_to_steps(right_mot_new_pos));
 			}
 
-			set_speed(get_current_speed ());
+			set_speed(MOTOR_SPEED);
 
 			//resets the distances travelled
 			dist_travelled[0] = 0;
@@ -168,7 +168,7 @@ int get_closer(int distance)
 {
 	init_pos_motor();
 	if(!check_dist(OBSTACLE_DISTANCE)){
-		set_speed(get_current_speed ());
+		set_speed(MOTOR_SPEED);
 		while(!check_dist(OBSTACLE_DISTANCE) && abs(right_motor_get_pos()) < dist_to_steps(distance)){}
 	}
 	if(abs(right_motor_get_pos()) >= dist_to_steps(distance)) return dist_to_steps(distance);

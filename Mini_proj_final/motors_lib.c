@@ -4,11 +4,14 @@
 
 //#include <TOF.h>
 #include <chprintf.h>
-
+#include <communications.h>
 #include <motors_lib.h>
 #include <stdlib.h>
 #include <selector.h>
+#include <audio_processing.h>
 
+
+#define MAX_SELECTOR_VALUE	15
 #define NSTEP_ONE_TURN      1000 // number of step for 1 turn of the motor
 #define NSTEP_ONE_EL_TURN   4  //number of steps to do 1 electrical turn
 #define NB_OF_PHASES        4  //number of phases of the motors
@@ -18,6 +21,7 @@
 #define WHEEL_DISTANCE      5.35f    //cm
 #define PERIMETER_EPUCK     (PI * WHEEL_DISTANCE)
 #define ALIGN_SPEED			200
+#define DELTA_SPEED 		60
 
 
 struct motor_speed {
@@ -26,9 +30,6 @@ struct motor_speed {
 };
 
 struct motor_speed motors;
-
-//Value that's changed via the selector
-float current_speed = MOTOR_SPEED; // [steps/s]
 
 void init_pos_motor(void)
 {
@@ -50,13 +51,13 @@ void straight_line(uint8_t distance, int dir)
 	*/
 
 	init_pos_motor();
-	left_motor_set_speed(dir * current_speed);
-	motors.left_speed = dir * current_speed;
-	right_motor_set_speed(dir * current_speed);
-	motors.right_speed = dir * current_speed;
+	left_motor_set_speed(dir * MOTOR_SPEED);
+	motors.left_speed = dir * MOTOR_SPEED;
+	right_motor_set_speed(dir * MOTOR_SPEED);
+	motors.right_speed = dir * MOTOR_SPEED;
 	while(abs(right_motor_get_pos()) < distance* NSTEP_ONE_TURN / WHEEL_PERIMETER){
-		left_motor_set_speed(dir * current_speed);
-		right_motor_set_speed(dir * current_speed);
+		left_motor_set_speed(dir * MOTOR_SPEED);
+		right_motor_set_speed(dir * MOTOR_SPEED);
 	}
 	left_motor_set_speed(0);
 	motors.left_speed = 0;
@@ -125,10 +126,10 @@ void infinite_stop(void){
 
 void go (void)
 {
-	left_motor_set_speed (current_speed);
-	right_motor_set_speed (current_speed);
-	motors.left_speed = current_speed;
-	motors.right_speed = current_speed;
+	left_motor_set_speed (MOTOR_SPEED);
+	right_motor_set_speed (MOTOR_SPEED);
+	motors.left_speed = MOTOR_SPEED;
+	motors.right_speed = MOTOR_SPEED;
 }
 
 int dist_to_steps(int distance){
@@ -141,8 +142,8 @@ int steps_to_dist(int steps){
 
 int conditional_advance(uint8_t distance, uint8_t dir, bool continue_advance){
 	init_pos_motor();
-	left_motor_set_speed(dir * current_speed);
-	right_motor_set_speed(dir * current_speed);
+	left_motor_set_speed(dir * MOTOR_SPEED);
+	right_motor_set_speed(dir * MOTOR_SPEED);
 	while(abs(right_motor_get_pos()) < distance* NSTEP_ONE_TURN / WHEEL_PERIMETER && continue_advance){}
 	left_motor_set_speed(0);
 	right_motor_set_speed(0);
@@ -166,49 +167,6 @@ void hundreed_turn(uint8_t num_of_hundreed_turns, int dir)
 	}
 	left_motor_set_speed(0);
 	right_motor_set_speed(0);
-}
-
-int32_t get_current_speed (void)
-{
-	return current_speed;
-}
-
-void  select_speed (void)
-{
-//	float temporary_speed = 0;
-////	chprintf((BaseSequentialStream *)&SD3, "selector = %d%\r\n\n", get_selector ());
-//	float percentage = (((float)get_selector())/MAX_SELECTOR_VALUE);
-////	chprintf((BaseSequentialStream *)&SD3, "percentage = %f%\r\n\n", percentage);
-//	temporary_speed = (float)(percentage*MOTOR_SPEED_LIMIT);
-//	temporary_speed = abs(temporary_speed);
-//	current_speed = (int32_t)(temporary_speed);
-//	chprintf((BaseSequentialStream *)&SD3, "speed = %f%\r\n\n", current_speed);
-//
-//	float percentage = (((float)get_selector())/MAX_SELECTOR_VALUE);
-//	current_speed = (float)(percentage*MOTOR_SPEED_LIMIT);
-//	current_speed = abs(current_speed);
-	if (100*get_selector () < (MOTOR_SPEED_LIMIT - 200))
-	{
-		current_speed = 100*get_selector ();
-	}
-}
-
-static THD_WORKING_AREA(wa_selector, 1024);
-static THD_FUNCTION(selector, arg) {
-    chRegSetThreadName(__FUNCTION__);
-    (void)arg;
-
-    while(1)
-	{
-    	select_speed ();
-	}
-    chThdSleepMilliseconds(1000);
-}
-
-
-void selector_start(void)
-{
-	chThdCreateStatic(wa_selector, sizeof(wa_selector), NORMALPRIO+1, selector, NULL);
 }
 
 

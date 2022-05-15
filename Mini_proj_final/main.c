@@ -39,7 +39,6 @@ int main(void)
     serial_start();
     usb_start();
     motors_init();
-    selector_start ();
     TOF_start();
     mic_start(&processAudioData);
     select_top_led_configuration (LOOP_40);

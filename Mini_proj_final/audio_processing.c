@@ -22,7 +22,6 @@
 #include <arm_math.h>
 
 #define FFT_SIZE 			1024
-#define HALF_SECOND 		SystemCoreClock/32
 #define DEG_45_TURN			2
 #define DEG_90_TURN			1
 #define DEG_180_TURN		2
@@ -643,9 +642,6 @@ void sound_remote(float* data)
 	if (max_norm_index >= FREQ_350_L && max_norm_index <= FREQ_350_H)
 	{
 		stop_and_go ();
-	} else if (max_norm_index >= FREQ_1300_L && max_norm_index <= FREQ_1300_H)
-	{
-		spin_left_then_right ();
 	} else if (max_norm_index >= FREQ_500_L && max_norm_index <= FREQ_500_H)
 	{
 		decrease_loop_distance ();
@@ -655,7 +651,10 @@ void sound_remote(float* data)
 	} else if (max_norm_index >= FREQ_1150_L && max_norm_index <= FREQ_1150_H)
 	{
 		go_back_and_forth ();
-	} else if (max_norm_index >= FREQ_1400_L && max_norm_index <= FREQ_1400_H)
+	} else if (max_norm_index >= FREQ_1300_L && max_norm_index <= FREQ_1300_H)
+	{
+		spin_left_then_right ();
+	}else if (max_norm_index >= FREQ_1400_L && max_norm_index <= FREQ_1400_H)
 	{
 		determine_sound_origin ();
 	}
