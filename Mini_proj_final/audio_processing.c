@@ -593,8 +593,8 @@ void stop_and_go (void)
  */
 void go_back_and_forth (void)
 {
-	//uint32_t right_motor_pos = right_motor_get_pos ();
-	//uint32_t left_motor_pos = left_motor_get_pos ();
+	uint32_t right_motor_pos = right_motor_get_pos ();
+	uint32_t left_motor_pos = left_motor_get_pos ();
 
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 	straight_line (5, BACK);
@@ -605,8 +605,8 @@ void go_back_and_forth (void)
 	straight_line (5, STRAIGHT);
 	palTogglePad(GPIOB, GPIOB_LED_BODY);
 
-	//right_motor_set_pos (right_motor_pos);
-	//left_motor_set_pos (left_motor_pos);
+	right_motor_set_pos (right_motor_pos);
+	left_motor_set_pos (left_motor_pos);
 }
 
 /*
