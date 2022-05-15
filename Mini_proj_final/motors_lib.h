@@ -25,9 +25,6 @@ void eight_times_two_turns(uint8_t num_of_sixteen_turns, int dir, uint16_t speed
 //Rolls straight for length distance then turn 90 degrees
 void straight_then_turn(uint8_t distance);
 
-//Initializes loop thread
-void loop_start(void);
-
 //Sets speed to 0
 void stop (void);
 
@@ -39,7 +36,5 @@ int dist_to_steps(int distance);
 
 //Converts steps to distance
 int steps_to_dist(int steps);
-
-void infinite_stop(void);
 
 #endif /* MOTORS_LIB_H */

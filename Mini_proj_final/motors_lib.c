@@ -10,16 +10,13 @@
 #include <selector.h>
 #include <audio_processing.h>
 
-
-#define MAX_SELECTOR_VALUE	15
 #define NSTEP_ONE_TURN      1000 // number of step for 1 turn of the motor
-#define NSTEP_ONE_EL_TURN   4  //number of steps to do 1 electrical turn
-#define NB_OF_PHASES        4  //number of phases of the motors
 #define WHEEL_PERIMETER     13 // [cm]
 #define PI                  3.1415926536f
-//TO ADJUST IF NECESSARY. NOT ALL THE E-PUCK2 HAVE EXACTLY THE SAME WHEEL DISTANCE
 #define WHEEL_DISTANCE      5.35f    //cm
 #define PERIMETER_EPUCK     (PI * WHEEL_DISTANCE)
+#define QUARTER_TURN		4
+#define SIXTEEN_TURN		16
 
 void init_pos_motor(void)
 {
@@ -30,8 +27,6 @@ void init_pos_motor(void)
 void straight_line(uint8_t distance, int dir)
 {
 	init_pos_motor();
-	left_motor_set_speed(dir * MOTOR_SPEED);
-	right_motor_set_speed(dir * MOTOR_SPEED);
 	while(abs(right_motor_get_pos()) < distance* NSTEP_ONE_TURN / WHEEL_PERIMETER){
 		left_motor_set_speed(dir * MOTOR_SPEED);
 		right_motor_set_speed(dir * MOTOR_SPEED);
@@ -44,13 +39,13 @@ void quarter_turns(uint8_t num_of_quarter_turns, int dir)
 {
 	init_pos_motor();
 	if (dir == 1){
-		while(right_motor_get_pos() < num_of_quarter_turns*PERIMETER_EPUCK/4* NSTEP_ONE_TURN / WHEEL_PERIMETER){
+		while(right_motor_get_pos() < num_of_quarter_turns*PERIMETER_EPUCK/QUARTER_TURN* NSTEP_ONE_TURN / WHEEL_PERIMETER){
 			left_motor_set_speed(-dir * MOTOR_SPEED);
 			right_motor_set_speed(dir * MOTOR_SPEED);
 		}
 	}else
 	{
-		while(left_motor_get_pos() < num_of_quarter_turns*PERIMETER_EPUCK/4* NSTEP_ONE_TURN / WHEEL_PERIMETER){
+		while(left_motor_get_pos() < num_of_quarter_turns*PERIMETER_EPUCK/QUARTER_TURN* NSTEP_ONE_TURN / WHEEL_PERIMETER){
 			left_motor_set_speed(-dir * MOTOR_SPEED);
 			right_motor_set_speed(dir * MOTOR_SPEED);
 		}
@@ -63,12 +58,12 @@ void eight_times_two_turns(uint8_t num_of_sixteen_turns, int dir, uint16_t speed
 {
 	init_pos_motor();
 	if (dir == 1){
-		while(right_motor_get_pos() < num_of_sixteen_turns*PERIMETER_EPUCK/16* NSTEP_ONE_TURN / WHEEL_PERIMETER){
+		while(right_motor_get_pos() < num_of_sixteen_turns*PERIMETER_EPUCK/SIXTEEN_TURN* NSTEP_ONE_TURN / WHEEL_PERIMETER){
 			left_motor_set_speed(-dir * speed);
 			right_motor_set_speed(dir * speed);
 		}
 	}else{
-		while(left_motor_get_pos() < num_of_sixteen_turns*PERIMETER_EPUCK/16* NSTEP_ONE_TURN / WHEEL_PERIMETER){
+		while(left_motor_get_pos() < num_of_sixteen_turns*PERIMETER_EPUCK/SIXTEEN_TURN* NSTEP_ONE_TURN / WHEEL_PERIMETER){
 			left_motor_set_speed(-dir * speed);
 			right_motor_set_speed(dir * speed);
 		}
@@ -92,11 +87,6 @@ void stop (void)
 {
 	left_motor_set_speed (0);
 	right_motor_set_speed (0);
-}
-
-void infinite_stop(void){
-	stop();
-	while(1){}
 }
 
 int dist_to_steps(int distance){
